@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: bridge-facturacion
+  profiles:
+    active: dev
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
