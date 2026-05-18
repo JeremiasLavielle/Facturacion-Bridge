@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:17
+    container_name: bridge-postgres
+    environment:
+      POSTGRES_DB: bridge
+      POSTGRES_USER: bridge
+      POSTGRES_PASSWORD: bridge_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - bridge_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bridge -d bridge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  bridge_pgdata:
