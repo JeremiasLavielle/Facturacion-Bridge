@@ -1,0 +1,6 @@
+CREATE TABLE alumnos (
+    id BIGSERIAL PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    dni VARCHAR(10) NOT NULL UNIQUE,
+    condicion_iva VARCHAR(40) NOT NULL
+);
