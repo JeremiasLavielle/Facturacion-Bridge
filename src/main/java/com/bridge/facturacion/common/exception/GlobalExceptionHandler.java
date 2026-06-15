@@ -1,9 +1,5 @@
 package com.bridge.facturacion.common.exception;
 
-import com.bridge.facturacion.alumno.exception.AlumnoDuplicadoException;
-import com.bridge.facturacion.alumno.exception.AlumnoNotFoundException;
-import com.bridge.facturacion.factura.exception.FacturaDuplicadaException;
-import com.bridge.facturacion.factura.exception.FacturaNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,51 +7,31 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(AlumnoNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(AlumnoNotFoundException ex) {
-        ErrorResponse body = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.NOT_FOUND.value(),
-                "Not Found",
-                ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage());
     }
 
-    @ExceptionHandler(AlumnoDuplicadoException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicado(AlumnoDuplicadoException ex) {
-        ErrorResponse body = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                "Conflict",
-                ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException ex) {
+        return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
     }
 
-    @ExceptionHandler(FacturaNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleFacturaNotFound(FacturaNotFoundException ex) {
-        ErrorResponse body = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.NOT_FOUND.value(),
-                "Not Found",
-                ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+        String detalle = ex.getBindingResult().getFieldErrors().stream()
+                .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        return build(HttpStatus.BAD_REQUEST, "Bad Request", detalle);
     }
 
-    @ExceptionHandler(FacturaDuplicadaException.class)
-    public ResponseEntity<ErrorResponse> handleFacturaDuplicada(FacturaDuplicadaException ex) {
-        ErrorResponse body = new ErrorResponse(
-                LocalDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                "Conflict",
-                ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    private ResponseEntity<ErrorResponse> build(HttpStatus status, String error, String message) {
+        ErrorResponse body = new ErrorResponse(LocalDateTime.now(), status.value(), error, message);
+        return ResponseEntity.status(status).body(body);
     }
 }

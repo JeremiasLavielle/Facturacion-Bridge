@@ -5,7 +5,7 @@ import com.bridge.facturacion.alumno.AlumnoRepository;
 import com.bridge.facturacion.alumno.exception.AlumnoNotFoundException;
 import com.bridge.facturacion.factura.dto.FacturaRequestDTO;
 import com.bridge.facturacion.factura.dto.FacturaResponseDTO;
-import com.bridge.facturacion.factura.exception.FacturaDuplicadaException;
+import com.bridge.facturacion.factura.exception.FacturaAlreadyExistsException;
 import com.bridge.facturacion.factura.exception.FacturaNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,18 +24,18 @@ public class FacturaService {
     private final FacturaRepository facturaRepository;
     private final FacturaMapper facturaMapper;
 
-    private Alumno buscarAlumno(Long id) {
+    private Alumno findAlumnoById(Long id) {
         return alumnoRepository.findById(id)
                 .orElseThrow(() -> new AlumnoNotFoundException(id));
     }
 
-    public FacturaResponseDTO crearFactura(FacturaRequestDTO facturaRequestDTO) {
+    public FacturaResponseDTO create(FacturaRequestDTO facturaRequestDTO) {
 
-        Alumno alumno = buscarAlumno(facturaRequestDTO.getAlumnoId());
+        Alumno alumno = findAlumnoById(facturaRequestDTO.getAlumnoId());
         LocalDate periodo = facturaRequestDTO.getPeriodo();
 
         if (facturaRepository.existsByAlumnoAndPeriodo(alumno, periodo)) {
-            throw new FacturaDuplicadaException(alumno, periodo);
+            throw new FacturaAlreadyExistsException(alumno, periodo);
         }
 
         Factura factura = new Factura();
@@ -48,25 +48,26 @@ public class FacturaService {
         Factura facturaGuardada = facturaRepository.save(factura);
         return facturaMapper.toResponse(facturaGuardada);
     }
+
     @Transactional(readOnly = true)
-    public FacturaResponseDTO getFacturaById(Long id) {
+    public FacturaResponseDTO findById(Long id) {
         Factura factura = facturaRepository.findById(id)
                 .orElseThrow(() -> new FacturaNotFoundException(id));
         return facturaMapper.toResponse(factura);
     }
     @Transactional(readOnly = true)
-    public List<FacturaResponseDTO> getAllFacturas(){
+    public List<FacturaResponseDTO> findAll(){
         List<Factura> facturas = facturaRepository.findAll();
         return facturas.stream().map(facturaMapper::toResponse).toList();
     }
     @Transactional(readOnly = true)
-    public List<FacturaResponseDTO> getFacturasByPeriodo(LocalDate periodo) {
+    public List<FacturaResponseDTO> findByPeriodo(LocalDate periodo) {
         List<Factura> facturas = facturaRepository.findByPeriodo(periodo);
         return facturas.stream().map(facturaMapper::toResponse).toList();
     }
     @Transactional(readOnly = true)
-    public List<FacturaResponseDTO> getFacturasByAlumno(Long alumnoId) {
-        Alumno alumno = buscarAlumno(alumnoId);
+    public List<FacturaResponseDTO> findByAlumno(Long alumnoId) {
+        Alumno alumno = findAlumnoById(alumnoId);
         List<Factura> facturas = facturaRepository.findByAlumno(alumno);
         return facturas.stream().map(facturaMapper::toResponse).toList();
     }

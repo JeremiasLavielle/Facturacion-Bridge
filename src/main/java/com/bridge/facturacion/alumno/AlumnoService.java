@@ -2,7 +2,7 @@ package com.bridge.facturacion.alumno;
 
 import com.bridge.facturacion.alumno.dto.AlumnoRequestDTO;
 import com.bridge.facturacion.alumno.dto.AlumnoResponseDTO;
-import com.bridge.facturacion.alumno.exception.AlumnoDuplicadoException;
+import com.bridge.facturacion.alumno.exception.AlumnoAlreadyExistsException;
 import com.bridge.facturacion.alumno.exception.AlumnoNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +18,9 @@ public class AlumnoService {
     private final AlumnoRepository repository;
     private final AlumnoMapper mapper;
 
-    public AlumnoResponseDTO createAlumno(AlumnoRequestDTO requestDTO) {
+    public AlumnoResponseDTO create(AlumnoRequestDTO requestDTO) {
         if (repository.findByDni(requestDTO.getDni()).isPresent()) {
-            throw new AlumnoDuplicadoException(requestDTO.getDni());
+            throw new AlumnoAlreadyExistsException(requestDTO.getDni());
         }
         Alumno alumno = mapper.toEntity(requestDTO);
         alumno = repository.save(alumno);
@@ -28,19 +28,19 @@ public class AlumnoService {
     }
 
     @Transactional(readOnly = true)
-    public List<AlumnoResponseDTO> getAllAlumnos() {
+    public List<AlumnoResponseDTO> findAll() {
         List<Alumno> alumnos = repository.findAll();
         return alumnos.stream().map(mapper::toResponse).toList();
     }
 
     @Transactional(readOnly = true)
-    public AlumnoResponseDTO getAlumnoById(Long id) {
+    public AlumnoResponseDTO findById(Long id) {
         Alumno alumno = repository.findById(id)
                 .orElseThrow(() -> new AlumnoNotFoundException(id));
         return mapper.toResponse(alumno);
     }
 
-    public AlumnoResponseDTO updateAlumno(Long id, AlumnoRequestDTO requestDTO) {
+    public AlumnoResponseDTO update(Long id, AlumnoRequestDTO requestDTO) {
         Alumno alumno = repository.findById(id)
                 .orElseThrow(() -> new AlumnoNotFoundException(id));
         mapper.updateEntityFromDto(requestDTO, alumno);
@@ -48,7 +48,7 @@ public class AlumnoService {
         return mapper.toResponse(alumno);
     }
 
-    public void deleteAlumnoById(Long id) {
+    public void deleteById(Long id) {
         if (!repository.existsById(id)) {
             throw new AlumnoNotFoundException(id);
         }

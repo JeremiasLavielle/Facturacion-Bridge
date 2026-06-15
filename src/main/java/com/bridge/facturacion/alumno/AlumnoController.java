@@ -20,32 +20,32 @@ public class AlumnoController {
 
     @GetMapping
     public ResponseEntity<List<AlumnoResponseDTO>> findAll() {
-        List<AlumnoResponseDTO> allAlumnos = alumnoService.getAllAlumnos();
-        return ResponseEntity.status(HttpStatus.OK).body(allAlumnos);
+        List<AlumnoResponseDTO> allAlumnos = alumnoService.findAll();
+        return ResponseEntity.ok(allAlumnos);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<AlumnoResponseDTO> findById(@PathVariable Long id) {
-        AlumnoResponseDTO alumno = alumnoService.getAlumnoById(id);
-        return ResponseEntity.status(HttpStatus.OK).body(alumno);
+        AlumnoResponseDTO alumno = alumnoService.findById(id);
+        return ResponseEntity.ok(alumno);
     }
 
     @PostMapping
-    public ResponseEntity<AlumnoResponseDTO> createAlumno(@Valid @RequestBody AlumnoRequestDTO requestDTO){
-        AlumnoResponseDTO alumnoResponseDTO = alumnoService.createAlumno(requestDTO);
+    public ResponseEntity<AlumnoResponseDTO> create(@Valid @RequestBody AlumnoRequestDTO requestDTO){
+        AlumnoResponseDTO alumnoResponseDTO = alumnoService.create(requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(alumnoResponseDTO);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<AlumnoResponseDTO>  update(@PathVariable Long id, @Valid @RequestBody AlumnoRequestDTO requestDTO){
-        AlumnoResponseDTO alumnoResponseDTO = alumnoService.updateAlumno(id, requestDTO);
-        return ResponseEntity.status(HttpStatus.OK).body(alumnoResponseDTO);
+        AlumnoResponseDTO alumnoResponseDTO = alumnoService.update(id, requestDTO);
+        return ResponseEntity.ok(alumnoResponseDTO);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteAlumno(@PathVariable Long id){
-        alumnoService.deleteAlumnoById(id);
+    public void deleteById(@PathVariable Long id){
+        alumnoService.deleteById(id);
     }
 
 }
