@@ -2,6 +2,8 @@ package com.bridge.facturacion.common.exception;
 
 import com.bridge.facturacion.alumno.exception.AlumnoDuplicadoException;
 import com.bridge.facturacion.alumno.exception.AlumnoNotFoundException;
+import com.bridge.facturacion.factura.exception.FacturaDuplicadaException;
+import com.bridge.facturacion.factura.exception.FacturaNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -26,6 +28,28 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AlumnoDuplicadoException.class)
     public ResponseEntity<ErrorResponse> handleDuplicado(AlumnoDuplicadoException ex) {
+        ErrorResponse body = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                "Conflict",
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(FacturaNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFacturaNotFound(FacturaNotFoundException ex) {
+        ErrorResponse body = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                "Not Found",
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(FacturaDuplicadaException.class)
+    public ResponseEntity<ErrorResponse> handleFacturaDuplicada(FacturaDuplicadaException ex) {
         ErrorResponse body = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
