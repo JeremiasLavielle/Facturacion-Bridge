@@ -25,6 +25,19 @@ public class FacturaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(facturaResponseDTO);
     }
 
+    /** Emite UNA factura contra ARCA (pide CAE). */
+    @PostMapping("/{id}/emitir")
+    public ResponseEntity<FacturaResponseDTO> emitir(@PathVariable Long id) {
+        return ResponseEntity.ok(facturaService.emitir(id));
+    }
+
+    /** Emision batch del mes: todas las facturas del periodo sin CAE. */
+    @PostMapping("/emitir")
+    public ResponseEntity<List<FacturaResponseDTO>> emitirPorPeriodo(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodo) {
+        return ResponseEntity.ok(facturaService.emitirPorPeriodo(periodo));
+    }
+
     @GetMapping
     public ResponseEntity<List<FacturaResponseDTO>> findAll() {
         List<FacturaResponseDTO> facturas = facturaService.findAll();
