@@ -3,3 +3,12 @@ spring:
     url: jdbc:postgresql://localhost:5432/bridge
     username: bridge
     password: ${DB_PASSWORD:bridge_dev}
+
+arca:
+  cuit-emisor: "20463447277"          # tu CUIT de homologación (el del nombre del .crt)
+  punto-venta: 1                       # el que tengas habilitado en WSASS — confirmalo
+  certificado: ${ARCA_CERT_PATH}       # ruta al .crt, vía variable de entorno
+  clave-privada: ${ARCA_KEY_PATH}      # ruta al .key, vía variable de entorno
+  url-wsaa: https://wsaahomo.afip.gov.ar/ws/services/LoginCms
+  url-wsfe: https://wswhomo.afip.gov.ar/wsfev1/service.asmx
+  ambiente: HOMOLOGACION

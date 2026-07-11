@@ -1,5 +1,8 @@
 package com.bridge.facturacion.common.exception;
 
+import com.bridge.facturacion.arca.ArcaException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,6 +14,8 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
@@ -28,6 +33,13 @@ public class GlobalExceptionHandler {
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         return build(HttpStatus.BAD_REQUEST, "Bad Request", detalle);
+    }
+
+    /** Fallo hablando con ARCA: 502, el problema esta en el upstream, no en el request. */
+    @ExceptionHandler(ArcaException.class)
+    public ResponseEntity<ErrorResponse> handleArca(ArcaException ex) {
+        log.error("Error contra ARCA: {}", ex.getMessage());
+        return build(HttpStatus.BAD_GATEWAY, "Bad Gateway", ex.getMessage());
     }
 
     private ResponseEntity<ErrorResponse> build(HttpStatus status, String error, String message) {

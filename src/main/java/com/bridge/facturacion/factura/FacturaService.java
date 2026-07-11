@@ -3,50 +3,96 @@ package com.bridge.facturacion.factura;
 import com.bridge.facturacion.alumno.Alumno;
 import com.bridge.facturacion.alumno.AlumnoRepository;
 import com.bridge.facturacion.alumno.exception.AlumnoNotFoundException;
+import com.bridge.facturacion.arca.ArcaClient;
+import com.bridge.facturacion.arca.ArcaException;
+import com.bridge.facturacion.arca.ResultadoEmision;
 import com.bridge.facturacion.factura.dto.FacturaRequestDTO;
 import com.bridge.facturacion.factura.dto.FacturaResponseDTO;
 import com.bridge.facturacion.factura.exception.FacturaAlreadyExistsException;
 import com.bridge.facturacion.factura.exception.FacturaNotFoundException;
+import com.bridge.facturacion.factura.exception.FacturaYaEmitidaException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
-
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class FacturaService {
 
+    private static final int DOC_TIPO_DNI = 96;
     private final AlumnoRepository alumnoRepository;
     private final FacturaRepository facturaRepository;
     private final FacturaMapper facturaMapper;
+    private final ArcaClient arcaClient;
 
     private Alumno findAlumnoById(Long id) {
         return alumnoRepository.findById(id)
                 .orElseThrow(() -> new AlumnoNotFoundException(id));
     }
 
-    public FacturaResponseDTO create(FacturaRequestDTO facturaRequestDTO) {
-
-        Alumno alumno = findAlumnoById(facturaRequestDTO.getAlumnoId());
-        LocalDate periodo = facturaRequestDTO.getPeriodo();
+    @Transactional
+    public FacturaResponseDTO create(FacturaRequestDTO request) {
+        Alumno alumno = findAlumnoById(request.getAlumnoId());
+        LocalDate periodo = request.getPeriodo();
 
         if (facturaRepository.existsByAlumnoAndPeriodo(alumno, periodo)) {
             throw new FacturaAlreadyExistsException(alumno, periodo);
         }
 
-        Factura factura = new Factura();
-
-        factura.setAlumno(alumno);
-        factura.setMonto(facturaRequestDTO.getMonto());
-        factura.setPeriodo(facturaRequestDTO.getPeriodo());
-        factura.setEstado(EstadoFactura.PENDIENTE);
-
+        Factura factura = Factura.pendiente(alumno, request.getMonto(), periodo);
         Factura facturaGuardada = facturaRepository.save(factura);
         return facturaMapper.toResponse(facturaGuardada);
+    }
+
+    public FacturaResponseDTO emitir(Long id) {
+        Factura factura = facturaRepository.findById(id)
+                .orElseThrow(() -> new FacturaNotFoundException(id));
+
+        if (factura.getEstado() == EstadoFactura.EMITIDA) {
+            throw new FacturaYaEmitidaException(id, factura.getCae());
+        }
+
+        Alumno alumno = factura.getAlumno();
+
+        ResultadoEmision resultado;
+        try {
+            resultado = arcaClient.solicitarCae(
+                    DOC_TIPO_DNI,
+                    Long.parseLong(alumno.getDni()),
+                    factura.getMonto(),
+                    factura.getPeriodo(),
+                    alumno.getCondicionIva().getCodigoArca());
+        } catch (ArcaException e) {
+            factura.marcarError(e.getMessage());
+            facturaRepository.save(factura);
+            throw e;
+        }
+
+        if (resultado.aprobada()) {
+            factura.marcarEmitida(resultado.cae(), resultado.vencimientoCae());
+        } else {
+            factura.marcarError(String.join(" | ", resultado.mensajes()));
+        }
+        return facturaMapper.toResponse(facturaRepository.save(factura));
+    }
+
+    public List<FacturaResponseDTO> emitirPorPeriodo(LocalDate periodo) {
+        List<FacturaResponseDTO> resultados = new ArrayList<>();
+        for (Factura factura : facturaRepository.findByPeriodo(periodo)) {
+            if (factura.getEstado() == EstadoFactura.EMITIDA) {
+                continue;
+            }
+            try {
+                resultados.add(emitir(factura.getId()));
+            } catch (ArcaException e) {
+                resultados.add(findById(factura.getId()));
+            }
+        }
+        return resultados;
     }
 
     @Transactional(readOnly = true)
@@ -55,22 +101,23 @@ public class FacturaService {
                 .orElseThrow(() -> new FacturaNotFoundException(id));
         return facturaMapper.toResponse(factura);
     }
+
     @Transactional(readOnly = true)
-    public List<FacturaResponseDTO> findAll(){
+    public List<FacturaResponseDTO> findAll() {
         List<Factura> facturas = facturaRepository.findAll();
         return facturas.stream().map(facturaMapper::toResponse).toList();
     }
+
     @Transactional(readOnly = true)
     public List<FacturaResponseDTO> findByPeriodo(LocalDate periodo) {
         List<Factura> facturas = facturaRepository.findByPeriodo(periodo);
         return facturas.stream().map(facturaMapper::toResponse).toList();
     }
+
     @Transactional(readOnly = true)
     public List<FacturaResponseDTO> findByAlumno(Long alumnoId) {
         Alumno alumno = findAlumnoById(alumnoId);
         List<Factura> facturas = facturaRepository.findByAlumno(alumno);
         return facturas.stream().map(facturaMapper::toResponse).toList();
     }
-
-
 }
