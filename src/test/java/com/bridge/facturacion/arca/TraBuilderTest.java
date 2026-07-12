@@ -9,7 +9,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class TraBuilderTest {
 
-    private final SoapClient parser = new SoapClient();
+    // SoapClient pide ArcaProperties por los timeouts; aca solo usamos parse().
+    private final SoapClient parser = new SoapClient(new ArcaProperties(
+            "20111111112", 1, "c", "k", "u1", "u2", Ambiente.HOMOLOGACION, 15, 45));
 
     @Test
     void build_generaUnTraValido() {

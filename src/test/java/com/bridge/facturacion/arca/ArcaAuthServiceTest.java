@@ -31,11 +31,11 @@ class ArcaAuthServiceTest {
         CertificadosDePrueba.Rutas rutas = CertificadosDePrueba.generarEn(dir);
         ArcaProperties properties = new ArcaProperties(
                 "20111111112", 1, rutas.cert(), rutas.key(),
-                "http://test/wsaa", "http://test/wsfe", Ambiente.HOMOLOGACION);
+                "http://test/wsaa", "http://test/wsfe", Ambiente.HOMOLOGACION, 15, 45);
 
         // spy: objeto REAL (parse y firstText funcionan de verdad),
         // pero le stubeamos post() para no salir a internet.
-        soapClient = spy(new SoapClient());
+        soapClient = spy(new SoapClient(properties));
         authService = new ArcaAuthService(properties, soapClient);
     }
 

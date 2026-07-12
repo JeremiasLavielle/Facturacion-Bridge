@@ -5,10 +5,12 @@ spring:
     password: ${DB_PASSWORD:bridge_dev}
 
 arca:
-  cuit-emisor: "20463447277"          # tu CUIT de homologación (el del nombre del .crt)
-  punto-venta: 1                       # el que tengas habilitado en WSASS — confirmalo
-  certificado: ${ARCA_CERT_PATH}       # ruta al .crt, vía variable de entorno
-  clave-privada: ${ARCA_KEY_PATH}      # ruta al .key, vía variable de entorno
+  cuit-emisor: "20463447277"
+  punto-venta: 1
+  certificado: ${ARCA_CERT_PATH}
+  clave-privada: ${ARCA_KEY_PATH}
   url-wsaa: https://wsaahomo.afip.gov.ar/ws/services/LoginCms
   url-wsfe: https://wswhomo.afip.gov.ar/wsfev1/service.asmx
   ambiente: HOMOLOGACION
+  timeout-conexion-segundos: 15        # establecer conexion TCP con ARCA
+  timeout-respuesta-segundos: 45       # espera maxima por la respuesta

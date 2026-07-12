@@ -129,6 +129,49 @@ public class ArcaClient {
         return parseResultado(doc, numero);
     }
 
+
+    /**
+     * Detalle del ultimo comprobante emitido en el punto de venta, o null si
+     * no hay ninguno. Es la herramienta contra el "timeout fantasma": si una
+     * emision fallo por corte de comunicacion, el comprobante puede existir
+     * en ARCA igual — consultarlo permite recuperar su CAE sin duplicar.
+     */
+    public ComprobanteEmitido consultarUltimoEmitido() {
+        long ultimo = ultimoComprobanteAutorizado();
+        if (ultimo == 0) {
+            return null; // punto de venta sin comprobantes todavia
+        }
+        String body = """
+                <ar:FECompConsultar>
+                    %s
+                    <ar:FeCompConsReq>
+                        <ar:CbteTipo>%d</ar:CbteTipo>
+                        <ar:CbteNro>%d</ar:CbteNro>
+                        <ar:PtoVta>%d</ar:PtoVta>
+                    </ar:FeCompConsReq>
+                </ar:FECompConsultar>
+                """.formatted(authXml(), FACTURA_C, ultimo, properties.puntoVenta());
+
+        Document doc = call("FECompConsultar", body);
+
+        List<String> errores = codigosYMensajes(doc, "Err");
+        if (!errores.isEmpty()) {
+            // 602 = "no existe comprobante": no es una falla, es "no hay nada".
+            if (errores.stream().anyMatch(e -> e.startsWith("[602]"))) {
+                return null;
+            }
+            throw new ArcaException("WSFE devolvio errores: " + String.join(" | ", errores));
+        }
+
+        return new ComprobanteEmitido(
+                ultimo,
+                Long.parseLong(soapClient.firstText(doc, "DocNro")),
+                new BigDecimal(soapClient.firstText(doc, "ImpTotal")),
+                LocalDate.parse(soapClient.firstText(doc, "FchServDesde"), FECHA_ARCA),
+                soapClient.firstText(doc, "CodAutorizacion"),
+                LocalDate.parse(soapClient.firstText(doc, "FchVto"), FECHA_ARCA));
+    }
+
     // ---------- helpers ----------
 
     private String authXml() {

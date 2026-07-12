@@ -6,6 +6,7 @@ import com.bridge.facturacion.alumno.CondicionIva;
 import com.bridge.facturacion.alumno.exception.AlumnoNotFoundException;
 import com.bridge.facturacion.arca.ArcaClient;
 import com.bridge.facturacion.arca.ArcaException;
+import com.bridge.facturacion.arca.ComprobanteEmitido;
 import com.bridge.facturacion.arca.ResultadoEmision;
 import com.bridge.facturacion.factura.dto.FacturaRequestDTO;
 import com.bridge.facturacion.factura.exception.FacturaAlreadyExistsException;
@@ -190,5 +191,51 @@ class FacturaServiceTest {
         assertThrows(FacturaYaEmitidaException.class, () -> facturaService.emitir(5L));
         verify(arcaClient, never()).solicitarCae(anyInt(), anyLong(), any(), any(), anyInt());
         verify(facturaRepository, never()).save(any());
+    }
+
+    // ---------- reintento y timeout fantasma (FECompConsultar) ----------
+
+    @Test
+    void emitir_recuperaElCae_cuandoElReintentoEncuentraElFantasma() {
+        // Arrange: la factura quedo en ERROR por un corte de comunicacion,
+        // pero ARCA SI la habia emitido. El ultimo comprobante coincide en
+        // DNI, importe y periodo -> es el fantasma.
+        Factura factura = Factura.pendiente(alumno, monto, periodo);
+        factura.marcarError("Fallo la comunicacion con ARCA: timeout");
+        when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
+        when(arcaClient.consultarUltimoEmitido()).thenReturn(new ComprobanteEmitido(
+                42, 12345678L, monto, periodo, "75123456789012", LocalDate.of(2026, 7, 18)));
+        when(facturaRepository.save(factura)).thenReturn(factura);
+
+        // Act
+        facturaService.emitir(5L);
+
+        // Assert: adopto el CAE existente SIN emitir de nuevo (eso seria
+        // duplicar un comprobante fiscal).
+        assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
+        assertEquals("75123456789012", factura.getCae());
+        verify(arcaClient, never()).solicitarCae(anyInt(), anyLong(), any(), any(), anyInt());
+    }
+
+    @Test
+    void emitir_emiteNormalmente_cuandoElUltimoComprobanteNoEsElFantasma() {
+        // Arrange: reintento de una ERROR, pero el ultimo comprobante de ARCA
+        // es de OTRA operacion (importe distinto) -> hay que emitir de verdad.
+        Factura factura = Factura.pendiente(alumno, monto, periodo);
+        factura.marcarError("rechazo previo");
+        when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
+        when(arcaClient.consultarUltimoEmitido()).thenReturn(new ComprobanteEmitido(
+                42, 12345678L, new BigDecimal("99999.00"), periodo, "70000000000001", LocalDate.of(2026, 7, 18)));
+        when(arcaClient.solicitarCae(96, 12345678L, monto, periodo, 5))
+                .thenReturn(new ResultadoEmision(
+                        true, 43, "75123456789013", LocalDate.of(2026, 7, 18), List.of()));
+        when(facturaRepository.save(factura)).thenReturn(factura);
+
+        // Act
+        facturaService.emitir(5L);
+
+        // Assert: emision nueva, con el CAE nuevo.
+        assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
+        assertEquals("75123456789013", factura.getCae());
     }
 }
