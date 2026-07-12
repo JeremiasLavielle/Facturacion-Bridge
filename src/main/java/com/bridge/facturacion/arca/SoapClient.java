@@ -20,19 +20,26 @@ import java.time.Duration;
  *
  * Decision de diseno: SOAP "a mano" en vez de stubs generados por WSDL —
  * mas transparente, mas facil de debuggear y sin fragilidad JAXB/JDK.
+ * Los timeouts vienen de ArcaProperties, como el resto de la configuracion.
  */
 @Component
 public class SoapClient {
 
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(15))
-            .build();
+    private final HttpClient http;
+    private final Duration timeoutRespuesta;
+
+    public SoapClient(ArcaProperties properties) {
+        this.http = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(properties.timeoutConexionSegundos()))
+                .build();
+        this.timeoutRespuesta = Duration.ofSeconds(properties.timeoutRespuestaSegundos());
+    }
 
     public Document post(String url, String soapAction, String xmlBody) {
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(45))
+                    .timeout(timeoutRespuesta)
                     .header("Content-Type", "text/xml; charset=utf-8")
                     .header("SOAPAction", soapAction)
                     .POST(HttpRequest.BodyPublishers.ofString(xmlBody, StandardCharsets.UTF_8))

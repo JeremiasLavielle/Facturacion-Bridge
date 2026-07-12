@@ -21,6 +21,7 @@ class ArcaClientTest {
 
     private static final String ACTION_ULTIMO = ArcaClient.NS + "FECompUltimoAutorizado";
     private static final String ACTION_CAE = ArcaClient.NS + "FECAESolicitar";
+    private static final String ACTION_CONSULTAR = ArcaClient.NS + "FECompConsultar";
 
     private SoapClient soapClient;
     private ArcaClient arcaClient;
@@ -29,12 +30,12 @@ class ArcaClientTest {
     void setUp() {
         ArcaProperties properties = new ArcaProperties(
                 "20111111112", 1, "cert", "key",
-                "http://test/wsaa", "http://test/wsfe", Ambiente.HOMOLOGACION);
+                "http://test/wsaa", "http://test/wsfe", Ambiente.HOMOLOGACION, 15, 45);
         ArcaAuthService authService = mock(ArcaAuthService.class);
         when(authService.getCredenciales())
                 .thenReturn(new Credenciales("T", "S", Instant.now().plusSeconds(43200)));
 
-        soapClient = spy(new SoapClient());
+        soapClient = spy(new SoapClient(properties));
         arcaClient = new ArcaClient(properties, authService, soapClient);
     }
 
@@ -157,5 +158,52 @@ class ArcaClientTest {
                 () -> arcaClient.solicitarCae(96, 12345678L, new BigDecimal("15000"),
                         LocalDate.of(2026, 7, 1), 5));
         assertTrue(ex.getMessage().contains("600"));
+    }
+
+    @Test
+    void consultarUltimoEmitido_devuelveElDetalleDelComprobante() {
+        stubUltimoAutorizado(42);
+        String xml = envolver("""
+                <FECompConsultarResponse xmlns="http://ar.gov.afip.dif.FEV1/">
+                    <FECompConsultarResult><ResultGet>
+                        <Concepto>2</Concepto>
+                        <DocTipo>96</DocTipo><DocNro>12345678</DocNro>
+                        <CbteDesde>42</CbteDesde><CbteHasta>42</CbteHasta>
+                        <ImpTotal>15000.00</ImpTotal>
+                        <FchServDesde>20260501</FchServDesde>
+                        <FchServHasta>20260531</FchServHasta>
+                        <CodAutorizacion>75123456789012</CodAutorizacion>
+                        <FchVto>20260718</FchVto>
+                    </ResultGet></FECompConsultarResult>
+                </FECompConsultarResponse>
+                """);
+        doReturn(soapClient.parse(xml))
+                .when(soapClient).post(anyString(), eq(ACTION_CONSULTAR), anyString());
+
+        ComprobanteEmitido ultimo = arcaClient.consultarUltimoEmitido();
+
+        assertEquals(42, ultimo.numero());
+        assertEquals(12345678L, ultimo.docNro());
+        assertEquals(0, ultimo.importeTotal().compareTo(new BigDecimal("15000.00")));
+        assertEquals(LocalDate.of(2026, 5, 1), ultimo.servicioDesde());
+        assertEquals("75123456789012", ultimo.cae());
+        assertEquals(LocalDate.of(2026, 7, 18), ultimo.vencimientoCae());
+    }
+
+    @Test
+    void consultarUltimoEmitido_devuelveNull_cuandoNoExisteComprobante() {
+        // 602 = "no existe comprobante": no es una falla, es "no hay nada".
+        stubUltimoAutorizado(42);
+        String xml = envolver("""
+                <FECompConsultarResponse xmlns="http://ar.gov.afip.dif.FEV1/">
+                    <FECompConsultarResult>
+                        <Errors><Err><Code>602</Code><Msg>No existe comprobante</Msg></Err></Errors>
+                    </FECompConsultarResult>
+                </FECompConsultarResponse>
+                """);
+        doReturn(soapClient.parse(xml))
+                .when(soapClient).post(anyString(), eq(ACTION_CONSULTAR), anyString());
+
+        assertNull(arcaClient.consultarUltimoEmitido());
     }
 }
