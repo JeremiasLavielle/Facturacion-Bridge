@@ -14,14 +14,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-/**
- * Cliente SOAP minimo: POST HTTP con el XML como texto y parseo de la
- * respuesta a un Document (arbol XML navegable).
- *
- * Decision de diseno: SOAP "a mano" en vez de stubs generados por WSDL —
- * mas transparente, mas facil de debuggear y sin fragilidad JAXB/JDK.
- * Los timeouts vienen de ArcaProperties, como el resto de la configuracion.
- */
 @Component
 public class SoapClient {
 
@@ -64,7 +56,6 @@ public class SoapClient {
         }
     }
 
-    /** Parsea un string XML con configuracion segura (sin entidades externas). */
     public Document parse(String xml) {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -78,7 +69,6 @@ public class SoapClient {
         }
     }
 
-    /** Texto del primer elemento con ese nombre (ignorando namespace), o null. */
     public String firstText(Document doc, String localName) {
         NodeList nodes = doc.getElementsByTagNameNS("*", localName);
         return nodes.getLength() > 0 ? nodes.item(0).getTextContent() : null;

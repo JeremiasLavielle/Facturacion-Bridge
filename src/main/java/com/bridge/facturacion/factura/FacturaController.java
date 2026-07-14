@@ -2,10 +2,12 @@ package com.bridge.facturacion.factura;
 
 import com.bridge.facturacion.factura.dto.FacturaRequestDTO;
 import com.bridge.facturacion.factura.dto.FacturaResponseDTO;
+import com.bridge.facturacion.pdf.PdfService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,11 +15,23 @@ import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/facturas")
+@RequestMapping("/facturas")
 @RequiredArgsConstructor
 public class FacturaController {
 
     private final FacturaService facturaService;
+    private final PdfService pdfService;
+
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> descargarPdf(@PathVariable Long id) {
+        var factura = pdfService.buscarEmitida(id);
+        byte[] pdf = pdfService.generar(factura);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header("Content-Disposition",
+                        "attachment; filename=\"" + pdfService.nombreArchivo(factura) + "\"")
+                .body(pdf);
+    }
 
     @PostMapping
     public ResponseEntity<FacturaResponseDTO> create(@Valid @RequestBody FacturaRequestDTO facturaRequestDTO) {
@@ -25,13 +39,11 @@ public class FacturaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(facturaResponseDTO);
     }
 
-    /** Emite UNA factura contra ARCA (pide CAE). */
     @PostMapping("/{id}/emitir")
     public ResponseEntity<FacturaResponseDTO> emitir(@PathVariable Long id) {
         return ResponseEntity.ok(facturaService.emitir(id));
     }
 
-    /** Emision batch del mes: todas las facturas del periodo sin CAE. */
     @PostMapping("/emitir")
     public ResponseEntity<List<FacturaResponseDTO>> emitirPorPeriodo(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodo) {

@@ -1,6 +1,7 @@
 package com.bridge.facturacion.common.exception;
 
 import com.bridge.facturacion.arca.ArcaException;
+import com.bridge.facturacion.factura.exception.FacturaNoEmitidaException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage());
     }
 
+    @ExceptionHandler(FacturaNoEmitidaException.class)
+    public ResponseEntity<ErrorResponse> handleNoEmitida(FacturaNoEmitidaException ex) {
+        return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
+    }
+
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException ex) {
         return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
@@ -35,7 +41,6 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Bad Request", detalle);
     }
 
-    /** Fallo hablando con ARCA: 502, el problema esta en el upstream, no en el request. */
     @ExceptionHandler(ArcaException.class)
     public ResponseEntity<ErrorResponse> handleArca(ArcaException ex) {
         log.error("Error contra ARCA: {}", ex.getMessage());

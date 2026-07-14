@@ -3,13 +3,6 @@ package com.bridge.facturacion.arca;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Construye el TRA (Ticket Request Access): el XML donde le pedimos a WSAA
- * acceso al servicio "wsfe" por un rango de tiempo.
- *
- * generationTime se retrocede 10 minutos para tolerar diferencias de reloj
- * entre nuestro servidor y el de ARCA (causa clasica de rechazo).
- */
 final class TraBuilder {
 
     private static final DateTimeFormatter ISO =

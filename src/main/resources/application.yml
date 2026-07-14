@@ -13,3 +13,13 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+
+# Datos "de membrete" que aparecen en el PDF del comprobante.
+# Reemplazar por los datos reales del instituto antes de produccion.
+emisor:
+  nombre-fantasia: "Instituto Bridge"
+  razon-social: "Nombre y Apellido del titular"
+  domicilio: "Domicilio del instituto - Ciudad, Provincia"
+  condicion-fiscal: "Responsable Monotributo"
+  ingresos-brutos: "Exento"
+  inicio-actividades: "01/01/2020"

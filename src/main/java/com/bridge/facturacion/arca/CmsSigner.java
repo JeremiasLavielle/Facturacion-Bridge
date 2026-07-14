@@ -24,11 +24,6 @@ import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.List;
 
-/**
- * Firma el TRA con CMS/PKCS#7 usando BouncyCastle.
- * Es el "sobre firmado" que WSAA exige para probar nuestra identidad:
- * contiene el TRA + la firma + nuestro certificado.
- */
 final class CmsSigner {
 
     static {
@@ -39,7 +34,6 @@ final class CmsSigner {
 
     private CmsSigner() {}
 
-    /** Devuelve el CMS firmado, codificado en Base64 (formato que espera loginCms). */
     static String signBase64(String tra, String certPath, String keyPath) {
         try {
             X509Certificate cert = loadCertificate(certPath);
@@ -68,7 +62,6 @@ final class CmsSigner {
         }
     }
 
-    /** Soporta claves PEM en formato PKCS#1 (RSA PRIVATE KEY) y PKCS#8 (PRIVATE KEY). */
     private static PrivateKey loadPrivateKey(String path) throws Exception {
         try (PEMParser parser = new PEMParser(new FileReader(path))) {
             Object pem = parser.readObject();

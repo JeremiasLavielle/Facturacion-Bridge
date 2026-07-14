@@ -19,11 +19,7 @@ import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.util.Date;
 
-/**
- * Helper de test: genera una clave RSA + certificado autofirmado y los
- * escribe como PEM en un directorio temporal. Nos permite testear la firma
- * CMS y el flujo WSAA sin usar el certificado real de homologacion.
- */
+
 final class CertificadosDePrueba {
 
     record Rutas(String cert, String key) {}

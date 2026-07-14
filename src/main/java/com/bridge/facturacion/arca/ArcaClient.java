@@ -14,18 +14,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Cliente de WSFEv1. Emite Factura C (comprobante tipo 11, el unico que
- * emite un Monotributista) por servicios (concepto 2).
- *
- * Secuencia de emision:
- *   1. FECompUltimoAutorizado -> ultimo numero autorizado en el punto de venta
- *   2. FECAESolicitar con numero = ultimo + 1
- *   3. Parsear CAE / rechazo
- *
- * ARCA es la fuente de verdad de la numeracion: pedirla en cada emision
- * evita duplicados y huecos aunque la app se reinicie.
- */
 @Service
 public class ArcaClient {
 
@@ -45,7 +33,6 @@ public class ArcaClient {
         this.soapClient = soapClient;
     }
 
-    /** Ultimo numero de comprobante autorizado (sirve tambien como "ping" de conectividad). */
     public long ultimoComprobanteAutorizado() {
         String body = """
                 <ar:FECompUltimoAutorizado>
@@ -64,15 +51,6 @@ public class ArcaClient {
         return Long.parseLong(nro);
     }
 
-    /**
-     * Solicita el CAE de una Factura C por servicios.
-     *
-     * @param docTipo              80=CUIT, 96=DNI, 99=sin identificar (consumidor final)
-     * @param docNro               numero de documento (0 si docTipo=99)
-     * @param importe              importe total (Factura C: total == neto, sin IVA discriminado)
-     * @param periodo              mes facturado (se usa como rango de servicio)
-     * @param condicionIvaReceptor codigo ARCA de la condicion IVA del receptor
-     */
     public ResultadoEmision solicitarCae(int docTipo, long docNro, BigDecimal importe,
                                          LocalDate periodo, int condicionIvaReceptor) {
 
@@ -129,13 +107,6 @@ public class ArcaClient {
         return parseResultado(doc, numero);
     }
 
-
-    /**
-     * Detalle del ultimo comprobante emitido en el punto de venta, o null si
-     * no hay ninguno. Es la herramienta contra el "timeout fantasma": si una
-     * emision fallo por corte de comunicacion, el comprobante puede existir
-     * en ARCA igual — consultarlo permite recuperar su CAE sin duplicar.
-     */
     public ComprobanteEmitido consultarUltimoEmitido() {
         long ultimo = ultimoComprobanteAutorizado();
         if (ultimo == 0) {
@@ -196,7 +167,6 @@ public class ArcaClient {
         return soapClient.post(properties.urlWsfe(), NS + metodo, envelope);
     }
 
-    /** Errores estructurales (auth vencida, punto de venta invalido, etc.): bloque Errors. */
     private void throwIfErrors(Document doc) {
         List<String> errores = codigosYMensajes(doc, "Err");
         if (!errores.isEmpty()) {
@@ -222,7 +192,6 @@ public class ArcaClient {
                 observaciones.isEmpty() ? List.of("Rechazada sin observaciones") : observaciones);
     }
 
-    /** Junta pares Code+Msg de los bloques Err u Obs. */
     private List<String> codigosYMensajes(Document doc, String tag) {
         List<String> result = new ArrayList<>();
         NodeList nodes = doc.getElementsByTagNameNS("*", tag);

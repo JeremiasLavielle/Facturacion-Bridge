@@ -16,8 +16,6 @@ public record ArcaProperties(
         @NotBlank String urlWsaa,
         @NotBlank String urlWsfe,
         Ambiente ambiente,
-        /** Segundos para establecer la conexion TCP con ARCA. */
         @DefaultValue("15") @Positive int timeoutConexionSegundos,
-        /** Segundos de espera maxima por la respuesta completa. */
         @DefaultValue("45") @Positive int timeoutRespuestaSegundos
 ) {}
