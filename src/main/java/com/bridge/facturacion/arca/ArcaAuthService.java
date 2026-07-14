@@ -7,16 +7,6 @@ import org.w3c.dom.Document;
 
 import java.time.OffsetDateTime;
 
-/**
- * Autenticacion WSAA con cache en memoria.
- *
- * Flujo: TRA -> firma CMS -> loginCms -> token + sign (12 hs).
- * ARCA RECHAZA pedir un ticket nuevo mientras el anterior sigue vigente,
- * por eso el cache no es una optimizacion: es obligatorio.
- *
- * synchronized: si dos requests llegan a la vez sin token, solo uno hace
- * el login; el otro espera y reutiliza el resultado.
- */
 @Service
 public class ArcaAuthService {
 

@@ -137,6 +137,7 @@ class FacturaServiceTest {
         assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
         assertEquals("75123456789012", factura.getCae());
         assertEquals(LocalDate.of(2026, 7, 18), factura.getVencimientoCae());
+        assertEquals(42L, factura.getNumeroComprobante());
         assertNotNull(factura.getFechaEmision());
         assertNull(factura.getMensajeError());
         verify(facturaRepository).save(factura);
@@ -184,7 +185,7 @@ class FacturaServiceTest {
         // Arrange: la factura ya fue emitida; reemitirla duplicaría un
         // comprobante fiscal.
         Factura factura = Factura.pendiente(alumno, monto, periodo);
-        factura.marcarEmitida("75123456789012", LocalDate.of(2026, 7, 18));
+        factura.marcarEmitida("75123456789012", LocalDate.of(2026, 7, 18), 42L);
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
 
         // Act + Assert: corta antes de tocar ARCA.
@@ -214,6 +215,7 @@ class FacturaServiceTest {
         // duplicar un comprobante fiscal).
         assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
         assertEquals("75123456789012", factura.getCae());
+        assertEquals(42L, factura.getNumeroComprobante());
         verify(arcaClient, never()).solicitarCae(anyInt(), anyLong(), any(), any(), anyInt());
     }
 

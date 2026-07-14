@@ -22,5 +22,6 @@ public class FacturaResponseDTO {
     private LocalDateTime fechaEmision;
     private String cae;
     private LocalDate vencimientoCae;
+    private Long numeroComprobante;
     private String mensajeError;
 }

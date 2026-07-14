@@ -61,15 +61,12 @@ public class FacturaService {
             throw new FacturaYaEmitidaException(id, factura.getCae());
         }
 
-        // Reintento de una ERROR: puede ser un "timeout fantasma" (ARCA emitio
-        // pero la respuesta se perdio). Antes de emitir de nuevo — y duplicar
-        // un comprobante fiscal — consultamos el ultimo emitido y comparamos.
         if (factura.getEstado() == EstadoFactura.ERROR) {
             ComprobanteEmitido ultimo = arcaClient.consultarUltimoEmitido();
             if (ultimo != null && coincideCon(factura, ultimo)) {
                 log.warn("Factura {} ya existia en ARCA (cbte {}, CAE {}): se recupera sin reemitir",
                         id, ultimo.numero(), ultimo.cae());
-                factura.marcarEmitida(ultimo.cae(), ultimo.vencimientoCae());
+                factura.marcarEmitida(ultimo.cae(), ultimo.vencimientoCae(), ultimo.numero());
                 return facturaMapper.toResponse(facturaRepository.save(factura));
             }
         }
@@ -91,7 +88,7 @@ public class FacturaService {
         }
 
         if (resultado.aprobada()) {
-            factura.marcarEmitida(resultado.cae(), resultado.vencimientoCae());
+            factura.marcarEmitida(resultado.cae(), resultado.vencimientoCae(), resultado.numeroComprobante());
         } else {
             factura.marcarError(String.join(" | ", resultado.mensajes()));
         }
@@ -132,11 +129,6 @@ public class FacturaService {
         return facturas.stream().map(facturaMapper::toResponse).toList();
     }
 
-    /**
-     * El ultimo comprobante de ARCA "es" esta factura si coinciden receptor,
-     * importe y periodo de servicio. Como hay UNIQUE (alumno, periodo), no
-     * puede haber otra factura legitima con esa misma combinacion.
-     */
     private boolean coincideCon(Factura factura, ComprobanteEmitido ultimo) {
         return ultimo.docNro() == Long.parseLong(factura.getAlumno().getDni())
                 && ultimo.importeTotal().compareTo(factura.getMonto()) == 0

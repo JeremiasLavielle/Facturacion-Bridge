@@ -91,6 +91,24 @@
             <artifactId>bcpkix-jdk18on</artifactId>
             <version>1.84</version>
         </dependency>
+        <!-- iText 8: generacion del PDF del comprobante (Fase 5).
+             kernel = motor PDF, layout = tablas/parrafos, barcodes = QR ARCA.
+             Licencia AGPL: ok para uso interno del instituto. -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>kernel</artifactId>
+            <version>8.0.5</version>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>layout</artifactId>
+            <version>8.0.5</version>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>barcodes</artifactId>
+            <version>8.0.5</version>
+        </dependency>
     </dependencies>
 
     <build>

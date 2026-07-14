@@ -13,10 +13,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-/**
- * Testea el armado del request y el parseo de respuestas de WSFE usando
- * XMLs con la misma forma que devuelve ARCA. La red esta stubeada.
- */
 class ArcaClientTest {
 
     private static final String ACTION_ULTIMO = ArcaClient.NS + "FECompUltimoAutorizado";

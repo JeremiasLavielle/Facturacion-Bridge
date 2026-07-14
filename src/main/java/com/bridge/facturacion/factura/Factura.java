@@ -9,10 +9,6 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * Sin @Setter a proposito: los unicos cambios de estado validos son
- * marcarEmitida() y marcarError(). Cualquier otra mutacion no compila.
- */
 @Entity
 @Table(name = "facturas")
 @Getter
@@ -34,6 +30,7 @@ public class Factura {
     private LocalDateTime fechaEmision;
     private String cae;
     private LocalDate vencimientoCae;
+    private Long numeroComprobante;
     private String mensajeError;
 
     public static Factura pendiente(Alumno alumno, BigDecimal monto, LocalDate periodo) {
@@ -45,16 +42,15 @@ public class Factura {
         return factura;
     }
 
-    /** ARCA aprobo: la factura existe fiscalmente. */
-    public void marcarEmitida(String cae, LocalDate vencimientoCae) {
+    public void marcarEmitida(String cae, LocalDate vencimientoCae, Long numeroComprobante) {
         this.estado = EstadoFactura.EMITIDA;
         this.cae = cae;
         this.vencimientoCae = vencimientoCae;
+        this.numeroComprobante = numeroComprobante;
         this.fechaEmision = LocalDateTime.now();
         this.mensajeError = null;
     }
 
-    /** ARCA rechazo o fallo la comunicacion: queda reintentable. */
     public void marcarError(String mensaje) {
         this.estado = EstadoFactura.ERROR;
         this.mensajeError = mensaje;

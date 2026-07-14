@@ -1,10 +1,5 @@
 package com.bridge.facturacion.alumno;
 
-/**
- * Condicion frente al IVA del alumno.
- * codigoArca es el codigo que WSFE exige como CondicionIVAReceptorId
- * (obligatorio desde RG 5616): es un dato del dominio, por eso vive aca.
- */
 public enum CondicionIva {
     RESPONSABLE_INSCRIPTO(1),
     MONOTRIBUTISTA(6),

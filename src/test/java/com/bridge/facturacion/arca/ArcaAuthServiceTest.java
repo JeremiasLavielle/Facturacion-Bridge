@@ -12,12 +12,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-/**
- * Testea el flujo WSAA completo (TRA + firma real con un certificado de
- * prueba) cortando solo la salida a la red: el post() esta stubeado.
- * Lo importante aca es el CACHE: pedir dos tickets seguidos a WSAA real
- * es un error (rechaza el segundo), asi que el cache tiene que funcionar.
- */
 class ArcaAuthServiceTest {
 
     @TempDir
@@ -79,13 +73,11 @@ class ArcaAuthServiceTest {
         authService.getCredenciales();
         authService.getCredenciales();
 
-        // Un solo login real, el resto salio del cache.
         verify(soapClient, times(1)).post(anyString(), anyString(), anyString());
     }
 
     @Test
     void getCredenciales_renueva_cuandoElTicketEstaPorVencer() {
-        // Vence en 1 minuto: menor al margen de 5, se considera NO vigente.
         stubRespuestaWsaa(OffsetDateTime.now().plusMinutes(1));
 
         authService.getCredenciales();
