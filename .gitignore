@@ -31,3 +31,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Deploy (Fase Docker) ###
+# Secretos reales: solo .env.example va a Git.
+.env
+# Certificado y clave privada de ARCA: jamás al repositorio.
+arca/
+# Build del frontend: se genera con npm run build, no se versiona acá.
+frontend-dist/
+
+.docs/

@@ -1,0 +1,11 @@
+target/
+.git/
+.idea/
+docs/
+*.md
+compose.yaml
+compose.prod.yaml
+Caddyfile
+frontend-dist/
+arca/
+.env

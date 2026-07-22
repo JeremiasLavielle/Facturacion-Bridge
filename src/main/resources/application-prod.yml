@@ -3,3 +3,22 @@ spring:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+  jpa:
+    show-sql: false
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+
+arca:
+  cuit-emisor: ${ARCA_CUIT}
+  punto-venta: ${ARCA_PUNTO_VENTA}
+  certificado: ${ARCA_CERT_PATH}
+  clave-privada: ${ARCA_KEY_PATH}
+  url-wsaa: ${ARCA_URL_WSAA}
+  url-wsfe: ${ARCA_URL_WSFE}
+  ambiente: ${ARCA_AMBIENTE}
+  timeout-conexion-segundos: 15
+  timeout-respuesta-segundos: 45

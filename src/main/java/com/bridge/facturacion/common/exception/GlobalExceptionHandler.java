@@ -41,6 +41,14 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "Bad Request", detalle);
     }
 
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleBadCredentials(
+            org.springframework.security.authentication.BadCredentialsException ex) {
+        // Mensaje fijo, no ex.getMessage(): la respuesta debe ser identica para
+        // "email inexistente" y "contraseña incorrecta" (evita enumerar usuarios).
+        return build(HttpStatus.UNAUTHORIZED, "Unauthorized", "Credenciales inválidas");
+    }
+
     @ExceptionHandler(ArcaException.class)
     public ResponseEntity<ErrorResponse> handleArca(ArcaException ex) {
         log.error("Error contra ARCA: {}", ex.getMessage());
