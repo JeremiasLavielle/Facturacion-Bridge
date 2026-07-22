@@ -14,8 +14,21 @@ spring:
     enabled: true
     baseline-on-migrate: true
 
-# Datos "de membrete" que aparecen en el PDF del comprobante.
-# Reemplazar por los datos reales del instituto antes de produccion.
+server:
+  servlet:
+    context-path: /api
+    session:
+      timeout: 8h
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: false
+
+app:
+  operador:
+    email: ${OPERADOR_EMAIL:}
+    password: ${OPERADOR_PASSWORD:}
+
 emisor:
   nombre-fantasia: "Instituto Bridge"
   razon-social: "Nombre y Apellido del titular"

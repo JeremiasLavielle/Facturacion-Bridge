@@ -1,0 +1,66 @@
+name: bridge-prod
+
+services:
+  caddy:
+    image: caddy:2
+    container_name: bridge-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frontend-dist:/srv/frontend:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+  backend:
+    build: .
+    container_name: bridge-backend
+    restart: unless-stopped
+    environment:
+      TZ: America/Argentina/Buenos_Aires
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/bridge
+      DB_USERNAME: bridge
+      DB_PASSWORD: ${DB_PASSWORD}
+      OPERADOR_EMAIL: ${OPERADOR_EMAIL}
+      OPERADOR_PASSWORD: ${OPERADOR_PASSWORD}
+      ARCA_CUIT: ${ARCA_CUIT}
+      ARCA_PUNTO_VENTA: ${ARCA_PUNTO_VENTA}
+      ARCA_CERT_PATH: /arca/certificado.crt
+      ARCA_KEY_PATH: /arca/clave-privada.key
+      ARCA_URL_WSAA: ${ARCA_URL_WSAA}
+      ARCA_URL_WSFE: ${ARCA_URL_WSFE}
+      ARCA_AMBIENTE: ${ARCA_AMBIENTE}
+    volumes:
+      - ./arca:/arca:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    container_name: bridge-postgres-prod
+    restart: unless-stopped
+    environment:
+      TZ: America/Argentina/Buenos_Aires
+      POSTGRES_DB: bridge
+      POSTGRES_USER: bridge
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - bridge_pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bridge -d bridge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  bridge_pgdata_prod:
+  caddy_data:
+  caddy_config:

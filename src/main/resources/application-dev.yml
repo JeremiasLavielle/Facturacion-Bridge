@@ -4,6 +4,11 @@ spring:
     username: bridge
     password: ${DB_PASSWORD:bridge_dev}
 
+app:
+  operador:
+    email: ${OPERADOR_EMAIL:admin@bridge.local}
+    password: ${OPERADOR_PASSWORD:cambiar123}
+
 arca:
   cuit-emisor: "20463447277"
   punto-venta: 1
@@ -12,5 +17,5 @@ arca:
   url-wsaa: https://wsaahomo.afip.gov.ar/ws/services/LoginCms
   url-wsfe: https://wswhomo.afip.gov.ar/wsfev1/service.asmx
   ambiente: HOMOLOGACION
-  timeout-conexion-segundos: 15        # establecer conexion TCP con ARCA
-  timeout-respuesta-segundos: 45       # espera maxima por la respuesta
+  timeout-conexion-segundos: 15
+  timeout-respuesta-segundos: 45
