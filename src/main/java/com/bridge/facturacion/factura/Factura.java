@@ -60,4 +60,9 @@ public class Factura {
         this.estado = EstadoFactura.ERROR;
         this.mensajeError = mensaje;
     }
+
+    /** La anula su nota de credito: conserva CAE y numero (el comprobante existe). */
+    public void marcarAnulada() {
+        this.estado = EstadoFactura.ANULADA;
+    }
 }

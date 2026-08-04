@@ -25,7 +25,10 @@ public class ArcaClient {
 
     private static final Logger log = LoggerFactory.getLogger(ArcaClient.class);
     private static final DateTimeFormatter FECHA_ARCA = DateTimeFormatter.ofPattern("yyyyMMdd");
-    private static final int FACTURA_C = 11;
+    /** Factura C. La numeracion de ARCA es por CUIT + PV + tipo. */
+    public static final int FACTURA_C = 11;
+    /** Nota de Credito C: numeracion PROPIA, independiente de la factura. */
+    public static final int NOTA_CREDITO_C = 13;
     private static final int CONCEPTO_SERVICIOS = 2;
     static final String NS = "http://ar.gov.afip.dif.FEV1/";
 
@@ -39,14 +42,19 @@ public class ArcaClient {
         this.soapClient = soapClient;
     }
 
+    /** Ultimo autorizado de FACTURA C (atajo historico). */
     public long ultimoComprobanteAutorizado(Emisor emisor) {
+        return ultimoComprobanteAutorizado(emisor, FACTURA_C);
+    }
+
+    public long ultimoComprobanteAutorizado(Emisor emisor, int cbteTipo) {
         String body = """
                 <ar:FECompUltimoAutorizado>
                     %s
                     <ar:PtoVta>%d</ar:PtoVta>
                     <ar:CbteTipo>%d</ar:CbteTipo>
                 </ar:FECompUltimoAutorizado>
-                """.formatted(authXml(emisor), emisor.getPuntoVenta(), FACTURA_C);
+                """.formatted(authXml(emisor), emisor.getPuntoVenta(), cbteTipo);
 
         Document doc = call("FECompUltimoAutorizado", body);
         throwIfErrors(doc);
@@ -57,17 +65,29 @@ public class ArcaClient {
         return Long.parseLong(nro);
     }
 
+    /** Solicita CAE de una FACTURA C (atajo historico, sin comprobante asociado). */
     public ResultadoEmision solicitarCae(Emisor emisor, int docTipo, long docNro, BigDecimal importe,
                                          LocalDate periodo, int condicionIvaReceptor) {
+        return solicitarCae(emisor, FACTURA_C, null, docTipo, docNro, importe, periodo, condicionIvaReceptor);
+    }
 
-        long numero = ultimoComprobanteAutorizado(emisor) + 1;
+    /**
+     * Version parametrizada (Fase 8): {@code cbteTipo} 11 (Factura C) o 13
+     * (Nota de Credito C). Para una NC, {@code asociado} referencia a la
+     * factura original en el bloque {@code CbtesAsoc}.
+     */
+    public ResultadoEmision solicitarCae(Emisor emisor, int cbteTipo, ComprobanteAsociado asociado,
+                                         int docTipo, long docNro, BigDecimal importe,
+                                         LocalDate periodo, int condicionIvaReceptor) {
+
+        long numero = ultimoComprobanteAutorizado(emisor, cbteTipo) + 1;
         LocalDate hoy = LocalDate.now();
         LocalDate desde = periodo.withDayOfMonth(1);
         LocalDate hasta = periodo.withDayOfMonth(periodo.lengthOfMonth());
         String monto = importe.setScale(2, RoundingMode.HALF_UP).toPlainString();
 
-        log.info("Solicitando CAE: emisor {} cbte {} pv {} doc {}/{} importe {}",
-                emisor.getCuit(), numero, emisor.getPuntoVenta(), docTipo, docNro, monto);
+        log.info("Solicitando CAE: emisor {} tipo {} cbte {} pv {} doc {}/{} importe {}",
+                emisor.getCuit(), cbteTipo, numero, emisor.getPuntoVenta(), docTipo, docNro, monto);
 
         String body = """
                 <ar:FECAESolicitar>
@@ -97,24 +117,29 @@ public class ArcaClient {
                                 <ar:FchVtoPago>%s</ar:FchVtoPago>
                                 <ar:MonId>PES</ar:MonId>
                                 <ar:MonCotiz>1</ar:MonCotiz>
-                                <ar:CondicionIVAReceptorId>%d</ar:CondicionIVAReceptorId>
+                                <ar:CondicionIVAReceptorId>%d</ar:CondicionIVAReceptorId>%s
                             </ar:FECAEDetRequest>
                         </ar:FeDetReq>
                     </ar:FeCAEReq>
                 </ar:FECAESolicitar>
-                """.formatted(authXml(emisor), emisor.getPuntoVenta(), FACTURA_C,
+                """.formatted(authXml(emisor), emisor.getPuntoVenta(), cbteTipo,
                 CONCEPTO_SERVICIOS, docTipo, docNro, numero, numero,
                 FECHA_ARCA.format(hoy), monto, monto,
                 FECHA_ARCA.format(desde), FECHA_ARCA.format(hasta), FECHA_ARCA.format(hoy),
-                condicionIvaReceptor);
+                condicionIvaReceptor, cbtesAsocXml(asociado));
 
         Document doc = call("FECAESolicitar", body);
         throwIfErrors(doc);
         return parseResultado(doc, numero);
     }
 
+    /** Ultimo emitido de FACTURA C (atajo historico). */
     public ComprobanteEmitido consultarUltimoEmitido(Emisor emisor) {
-        long ultimo = ultimoComprobanteAutorizado(emisor);
+        return consultarUltimoEmitido(emisor, FACTURA_C);
+    }
+
+    public ComprobanteEmitido consultarUltimoEmitido(Emisor emisor, int cbteTipo) {
+        long ultimo = ultimoComprobanteAutorizado(emisor, cbteTipo);
         if (ultimo == 0) {
             return null; // punto de venta sin comprobantes todavia
         }
@@ -127,7 +152,7 @@ public class ArcaClient {
                         <ar:PtoVta>%d</ar:PtoVta>
                     </ar:FeCompConsReq>
                 </ar:FECompConsultar>
-                """.formatted(authXml(emisor), FACTURA_C, ultimo, emisor.getPuntoVenta());
+                """.formatted(authXml(emisor), cbteTipo, ultimo, emisor.getPuntoVenta());
 
         Document doc = call("FECompConsultar", body);
 
@@ -150,6 +175,29 @@ public class ArcaClient {
     }
 
     // ---------- helpers ----------
+
+    /**
+     * Bloque CbtesAsoc para notas de credito. WSFE valida el ORDEN de los
+     * elementos: va inmediatamente despues de CondicionIVAReceptorId.
+     */
+    private String cbtesAsocXml(ComprobanteAsociado asociado) {
+        if (asociado == null) {
+            return "";
+        }
+        return """
+
+                <ar:CbtesAsoc>
+                    <ar:CbteAsoc>
+                        <ar:Tipo>%d</ar:Tipo>
+                        <ar:PtoVta>%d</ar:PtoVta>
+                        <ar:Nro>%d</ar:Nro>
+                        <ar:Cuit>%s</ar:Cuit>
+                        <ar:CbteFch>%s</ar:CbteFch>
+                    </ar:CbteAsoc>
+                </ar:CbtesAsoc>""".formatted(
+                asociado.tipo(), asociado.puntoVenta(), asociado.numero(),
+                asociado.cuitEmisor(), FECHA_ARCA.format(asociado.fecha()));
+    }
 
     private String authXml(Emisor emisor) {
         Credenciales cred = authService.getCredenciales(emisor);

@@ -8,6 +8,8 @@ import com.bridge.facturacion.factura.Factura;
 import com.bridge.facturacion.factura.FacturaRepository;
 import com.bridge.facturacion.factura.exception.FacturaNoEmitidaException;
 import com.bridge.facturacion.factura.exception.FacturaNotFoundException;
+import com.bridge.facturacion.notacredito.NotaCredito;
+import com.bridge.facturacion.notacredito.NotaCreditoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,7 +40,7 @@ class PdfServiceTest {
         factura = Factura.pendiente(alumno, emisor, new BigDecimal("15000.00"), LocalDate.of(2026, 7, 1));
 
         facturaRepository = mock(FacturaRepository.class);
-        pdfService = new PdfService(facturaRepository);
+        pdfService = new PdfService(facturaRepository, mock(NotaCreditoRepository.class));
     }
 
     @Test
@@ -84,5 +86,29 @@ class PdfServiceTest {
         when(facturaRepository.findById(9L)).thenReturn(Optional.empty());
 
         assertThrows(FacturaNotFoundException.class, () -> pdfService.buscarEmitida(9L));
+    }
+
+    // ---------- notas de credito (Fase 8) ----------
+
+    @Test
+    void buscarEmitida_permiteFacturasAnuladas_porqueElComprobanteExiste() {
+        factura.marcarEmitida("86270536276914", LocalDate.of(2026, 7, 18), 42L);
+        factura.marcarAnulada();
+        when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
+
+        assertSame(factura, pdfService.buscarEmitida(5L));
+    }
+
+    @Test
+    void generar_produceUnPdfValido_paraUnaNotaDeCredito() {
+        factura.marcarEmitida("86270536276914", LocalDate.of(2026, 7, 18), 42L);
+        NotaCredito nc = NotaCredito.pendiente(factura, "error en el monto");
+        nc.marcarEmitida("86270536276999", LocalDate.of(2026, 8, 30), 5L);
+
+        byte[] pdf = pdfService.generar(nc);
+
+        assertTrue(pdf.length > 1000, "un comprobante real no puede pesar tan poco");
+        assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
+        assertEquals("nota-credito-0001-00000005.pdf", pdfService.nombreArchivo(nc));
     }
 }

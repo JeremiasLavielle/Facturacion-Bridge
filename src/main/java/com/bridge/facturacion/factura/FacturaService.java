@@ -68,7 +68,10 @@ public class FacturaService {
         Factura factura = facturaRepository.findById(id)
                 .orElseThrow(() -> new FacturaNotFoundException(id));
 
-        if (factura.getEstado() == EstadoFactura.EMITIDA) {
+        // EMITIDA o ANULADA: el comprobante ya existe en ARCA; reemitirlo
+        // seria duplicar un comprobante fiscal.
+        if (factura.getEstado() == EstadoFactura.EMITIDA
+                || factura.getEstado() == EstadoFactura.ANULADA) {
             throw new FacturaYaEmitidaException(id, factura.getCae());
         }
 
@@ -118,7 +121,8 @@ public class FacturaService {
     public List<FacturaResponseDTO> emitirPorPeriodo(LocalDate periodo) {
         Map<Long, List<Factura>> lotesPorEmisor = new LinkedHashMap<>();
         for (Factura factura : facturaRepository.findByPeriodo(periodo)) {
-            if (factura.getEstado() == EstadoFactura.EMITIDA) {
+            if (factura.getEstado() == EstadoFactura.EMITIDA
+                    || factura.getEstado() == EstadoFactura.ANULADA) {
                 continue;
             }
             lotesPorEmisor.computeIfAbsent(factura.getEmisor().getId(), k -> new ArrayList<>())

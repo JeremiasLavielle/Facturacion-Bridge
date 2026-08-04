@@ -33,7 +33,9 @@ class PdfMuestraTest {
         emisor.setPuntoVenta(1);
         emisor.setCertPath("20463447277/certificado.crt");
         emisor.setKeyPath("20463447277/clave-privada.key");
-        PdfService pdfService = new PdfService(mock(FacturaRepository.class));
+        PdfService pdfService = new PdfService(
+                mock(FacturaRepository.class),
+                mock(com.bridge.facturacion.notacredito.NotaCreditoRepository.class));
 
         Alumno alumno = new Alumno();
         alumno.setNombre("Juan Ignacio Perez");

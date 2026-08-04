@@ -30,6 +30,7 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
     private static final String OPERADOR_EMAIL = "e2e@bridge.local";
     private static final String OPERADOR_PASSWORD = "clave-e2e";
     private static final String CAE = "75123456789012";
+    private static final String CAE_NC = "75123456789099";
 
     // ---------- ARCA falsa: servidor HTTP local que habla SOAP ----------
 
@@ -41,10 +42,15 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
             ARCA_FALSA.createContext("/wsaa", exchange -> responder(exchange, respuestaWsaa()));
             ARCA_FALSA.createContext("/wsfe", exchange -> {
                 String action = exchange.getRequestHeaders().getFirst("Soapaction");
+                // La numeracion es por TIPO: factura C (11) va por 41,
+                // nota de credito C (13) por 7 (numeracion propia).
+                String cuerpo = new String(exchange.getRequestBody().readAllBytes(),
+                        StandardCharsets.UTF_8);
+                boolean esNotaCredito = cuerpo.contains("<ar:CbteTipo>13</ar:CbteTipo>");
                 if (action != null && action.contains("FECompUltimoAutorizado")) {
-                    responder(exchange, respuestaUltimoAutorizado(41));
+                    responder(exchange, respuestaUltimoAutorizado(esNotaCredito ? 7 : 41));
                 } else if (action != null && action.contains("FECAESolicitar")) {
-                    responder(exchange, respuestaCaeAprobado());
+                    responder(exchange, respuestaCaeAprobado(esNotaCredito ? CAE_NC : CAE));
                 } else {
                     responder(exchange, "<sin-handler/>");
                 }
@@ -95,7 +101,7 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
                 """.formatted(numero));
     }
 
-    private static String respuestaCaeAprobado() {
+    private static String respuestaCaeAprobado(String cae) {
         return envolver("""
                 <FECAESolicitarResponse xmlns="http://ar.gov.afip.dif.FEV1/">
                     <FECAESolicitarResult>
@@ -107,7 +113,7 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
                         </FECAEDetResponse></FeDetResp>
                     </FECAESolicitarResult>
                 </FECAESolicitarResponse>
-                """.formatted(CAE));
+                """.formatted(cae));
     }
 
     @DynamicPropertySource
@@ -215,6 +221,49 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition",
                         "attachment; filename=\"factura-0002-00000042.pdf\""));
+
+        // 7. Nota de credito (Fase 8): anula la factura del emisor 1.
+        //    Numeracion PROPIA del tipo 13: ultimo (7) + 1 = 8.
+        MvcResult nc = mockMvc.perform(post("/facturas/{id}/nota-credito", facturaId)
+                        .session(sesion).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"motivo":"error en el monto facturado"}"""))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.estado").value("EMITIDA"))
+                .andExpect(jsonPath("$.cae").value(CAE_NC))
+                .andExpect(jsonPath("$.numeroComprobante").value(8))
+                .andExpect(jsonPath("$.facturaId").value((int) facturaId))
+                .andReturn();
+        long ncId = idDe(nc);
+
+        // 8. La factura quedo ANULADA (conserva su CAE) y linkea a su NC.
+        mockMvc.perform(get("/facturas/{id}", facturaId).session(sesion))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("ANULADA"))
+                .andExpect(jsonPath("$.cae").value(CAE));
+        mockMvc.perform(get("/facturas/{id}/nota-credito", facturaId).session(sesion))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value((int) ncId));
+
+        // 9. Una segunda NC sobre la misma factura se rechaza (409).
+        mockMvc.perform(post("/facturas/{id}/nota-credito", facturaId)
+                        .session(sesion).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"motivo":"segundo intento"}"""))
+                .andExpect(status().isConflict());
+
+        // 10. PDF de la NC.
+        byte[] pdfNc = mockMvc.perform(get("/notas-credito/{id}/pdf", ncId).session(sesion))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"nota-credito-0001-00000008.pdf\""))
+                .andReturn().getResponse().getContentAsByteArray();
+
+        assertTrue(pdfNc.length > 1000, "el PDF de la NC deberia tener contenido real");
+        assertEquals("%PDF", new String(pdfNc, 0, 4, StandardCharsets.US_ASCII));
     }
 
     private long idDe(MvcResult resultado) throws Exception {

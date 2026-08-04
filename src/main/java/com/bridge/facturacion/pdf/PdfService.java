@@ -1,11 +1,16 @@
 package com.bridge.facturacion.pdf;
 
 import com.bridge.facturacion.emisor.Emisor;
+import com.bridge.facturacion.alumno.Alumno;
 import com.bridge.facturacion.factura.EstadoFactura;
 import com.bridge.facturacion.factura.Factura;
 import com.bridge.facturacion.factura.FacturaRepository;
 import com.bridge.facturacion.factura.exception.FacturaNoEmitidaException;
 import com.bridge.facturacion.factura.exception.FacturaNotFoundException;
+import com.bridge.facturacion.notacredito.EstadoNotaCredito;
+import com.bridge.facturacion.notacredito.NotaCredito;
+import com.bridge.facturacion.notacredito.NotaCreditoRepository;
+import com.bridge.facturacion.notacredito.exception.NotaCreditoNotFoundException;
 import com.itextpdf.barcodes.BarcodeQRCode;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceGray;
@@ -26,15 +31,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 /**
- * Genera el PDF del comprobante. Desde la Fase 7 la cabecera, el pie y el
- * QR salen del EMISOR DE LA FACTURA (factura.getEmisor()), no de una
- * configuracion global.
+ * Genera el PDF del comprobante (factura o nota de credito) con la MISMA
+ * plantilla: cambian el titulo, el codigo de tipo y, en la NC, la leyenda
+ * "Anula a Factura C ...". Los datos de cabecera/pie/QR salen del emisor
+ * del comprobante.
  */
 @Service
 public class PdfService {
@@ -42,12 +51,45 @@ public class PdfService {
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter PERIODO = DateTimeFormatter.ofPattern("MM/yyyy");
     private static final int TIPO_FACTURA_C = 11;
+    private static final int TIPO_NOTA_CREDITO_C = 13;
     private static final int DOC_TIPO_DNI = 96;
 
     private final FacturaRepository facturaRepository;
+    private final NotaCreditoRepository notaCreditoRepository;
 
-    public PdfService(FacturaRepository facturaRepository) {
+    public PdfService(FacturaRepository facturaRepository, NotaCreditoRepository notaCreditoRepository) {
         this.facturaRepository = facturaRepository;
+        this.notaCreditoRepository = notaCreditoRepository;
+    }
+
+    /**
+     * Todo lo que la plantilla necesita, sin importar si es factura o NC.
+     * {@code leyendaAsociada} solo existe en la NC ("Anula a Factura C ...").
+     */
+    private record Comprobante(
+            Emisor emisor, Alumno alumno, int tipo, String titulo,
+            long numero, LocalDateTime fechaEmision, LocalDate periodo,
+            BigDecimal monto, String cae, LocalDate vencimientoCae,
+            String descripcionItem, String leyendaAsociada) {}
+
+    private Comprobante de(Factura factura) {
+        return new Comprobante(
+                factura.getEmisor(), factura.getAlumno(), TIPO_FACTURA_C, "FACTURA",
+                factura.getNumeroComprobante(), factura.getFechaEmision(), factura.getPeriodo(),
+                factura.getMonto(), factura.getCae(), factura.getVencimientoCae(),
+                "Servicios educativos — período " + PERIODO.format(factura.getPeriodo()),
+                null);
+    }
+
+    private Comprobante de(NotaCredito nc) {
+        Factura factura = nc.getFactura();
+        return new Comprobante(
+                nc.getEmisor(), factura.getAlumno(), TIPO_NOTA_CREDITO_C, "NOTA DE CRÉDITO",
+                nc.getNumeroComprobante(), nc.getFechaEmision(), factura.getPeriodo(),
+                nc.getMonto(), nc.getCae(), nc.getVencimientoCae(),
+                "Anulación — servicios educativos período " + PERIODO.format(factura.getPeriodo()),
+                "Anula a Factura C %04d-%08d".formatted(
+                        nc.getEmisor().getPuntoVenta(), factura.getNumeroComprobante()));
     }
 
     /** Nombre de archivo estilo "factura-0001-00000042.pdf". */
@@ -56,11 +98,18 @@ public class PdfService {
                 factura.getEmisor().getPuntoVenta(), factura.getNumeroComprobante());
     }
 
+    public String nombreArchivo(NotaCredito nc) {
+        return "nota-credito-%04d-%08d.pdf".formatted(
+                nc.getEmisor().getPuntoVenta(), nc.getNumeroComprobante());
+    }
+
     @Transactional(readOnly = true)
     public Factura buscarEmitida(Long id) {
         Factura factura = facturaRepository.findById(id)
                 .orElseThrow(() -> new FacturaNotFoundException(id));
-        if (factura.getEstado() != EstadoFactura.EMITIDA) {
+        // ANULADA tambien tiene comprobante: se emitio y luego la anulo su NC.
+        if (factura.getEstado() != EstadoFactura.EMITIDA
+                && factura.getEstado() != EstadoFactura.ANULADA) {
             throw new FacturaNoEmitidaException(id);
         }
 
@@ -70,26 +119,44 @@ public class PdfService {
         return factura;
     }
 
+    @Transactional(readOnly = true)
+    public NotaCredito buscarNotaCreditoEmitida(Long id) {
+        NotaCredito nc = notaCreditoRepository.findById(id)
+                .orElseThrow(() -> new NotaCreditoNotFoundException(id));
+        if (nc.getEstado() != EstadoNotaCredito.EMITIDA || nc.getNumeroComprobante() == null) {
+            throw FacturaNoEmitidaException.notaCredito(id);
+        }
+        return nc;
+    }
+
     public byte[] generar(Factura factura) {
+        return generar(de(factura));
+    }
+
+    public byte[] generar(NotaCredito nc) {
+        return generar(de(nc));
+    }
+
+    private byte[] generar(Comprobante cbte) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PdfDocument pdf = new PdfDocument(new PdfWriter(out));
         try (Document doc = new Document(pdf, PageSize.A4)) {
             doc.setMargins(24, 28, 24, 28);
-            doc.add(cabecera(factura));
-            doc.add(bloqueReceptor(factura));
-            doc.add(tablaItems(factura));
+            doc.add(cabecera(cbte));
+            doc.add(bloqueReceptor(cbte));
+            doc.add(tablaItems(cbte));
             doc.add(espaciador(240));
-            doc.add(totales(factura));
+            doc.add(totales(cbte));
             doc.add(espaciador(10));
-            doc.add(pieConQr(factura, pdf));
+            doc.add(pieConQr(cbte, pdf));
         }
         return out.toByteArray();
     }
 
     // ---------------- secciones ----------------
 
-    private Table cabecera(Factura factura) {
-        Emisor emisor = factura.getEmisor();
+    private Table cabecera(Comprobante cbte) {
+        Emisor emisor = cbte.emisor();
         Table tabla = new Table(UnitValue.createPercentArray(new float[]{44, 12, 44}))
                 .useAllAvailableWidth();
 
@@ -107,15 +174,16 @@ public class PdfService {
                 .add(new Paragraph("C").setBold().setFontSize(26)
                         .setBorder(new SolidBorder(1.2f)).setMarginTop(4)
                         .setPaddingLeft(6).setPaddingRight(6))
-                .add(new Paragraph("CÓD. " + TIPO_FACTURA_C).setFontSize(7))
+                .add(new Paragraph("CÓD. " + cbte.tipo()).setFontSize(7))
                 .add(new Paragraph("ORIGINAL").setFontSize(8).setBold()
                         .setBackgroundColor(new DeviceGray(0.85f)));
 
         Cell derecha = celdaConBorde().setPaddingLeft(10)
-                .add(new Paragraph("FACTURA").setBold().setFontSize(18).setMarginTop(4))
-                .add(new Paragraph("%04d-%08d".formatted(emisor.getPuntoVenta(), factura.getNumeroComprobante()))
+                .add(new Paragraph(cbte.titulo()).setBold()
+                        .setFontSize(cbte.tipo() == TIPO_NOTA_CREDITO_C ? 14 : 18).setMarginTop(4))
+                .add(new Paragraph("%04d-%08d".formatted(emisor.getPuntoVenta(), cbte.numero()))
                         .setBold().setFontSize(11))
-                .add(campo("Fecha de Emisión: ", FECHA.format(factura.getFechaEmision())))
+                .add(campo("Fecha de Emisión: ", FECHA.format(cbte.fechaEmision())))
                 .add(new Paragraph("").setFontSize(6))
                 .add(campo("CUIT: ", formatearCuit(emisor.getCuit())))
                 .add(campo("Ingresos Brutos: ", emisor.getIngresosBrutos()))
@@ -125,21 +193,27 @@ public class PdfService {
         return tabla;
     }
 
-    private Table bloqueReceptor(Factura factura) {
+    private Table bloqueReceptor(Comprobante cbte) {
         Table tabla = new Table(UnitValue.createPercentArray(new float[]{50, 50}))
                 .useAllAvailableWidth().setMarginTop(6);
         tabla.addCell(celdaConBorde().setPaddingLeft(8)
-                .add(campo("Nombre: ", factura.getAlumno().getNombre()))
-                .add(campo("Cond. IVA: ", legible(factura.getAlumno().getCondicionIva().name())))
+                .add(campo("Nombre: ", cbte.alumno().getNombre()))
+                .add(campo("Cond. IVA: ", legible(cbte.alumno().getCondicionIva().name())))
                 .add(campo("Cond. Venta: ", "Contado")));
-        tabla.addCell(celdaConBorde().setPaddingLeft(8)
-                .add(campo("DNI: ", factura.getAlumno().getDni()))
-                .add(campo("Período: ", PERIODO.format(factura.getPeriodo())))
-                .add(new Paragraph(" ").setFontSize(9)));
+        Cell derecha = celdaConBorde().setPaddingLeft(8)
+                .add(campo("DNI: ", cbte.alumno().getDni()))
+                .add(campo("Período: ", PERIODO.format(cbte.periodo())));
+        // La NC referencia SIEMPRE a su factura original.
+        if (cbte.leyendaAsociada() != null) {
+            derecha.add(new Paragraph(cbte.leyendaAsociada()).setBold().setFontSize(9));
+        } else {
+            derecha.add(new Paragraph(" ").setFontSize(9));
+        }
+        tabla.addCell(derecha);
         return tabla;
     }
 
-    private Table tablaItems(Factura factura) {
+    private Table tablaItems(Comprobante cbte) {
         Table tabla = new Table(UnitValue.createPercentArray(new float[]{11, 49, 12, 14, 14}))
                 .useAllAvailableWidth().setMarginTop(6);
         for (String titulo : new String[]{"Código", "Descripción", "Cantidad", "P. Unitario", "Importe"}) {
@@ -149,44 +223,43 @@ public class PdfService {
                     .setBorder(Border.NO_BORDER)
                     .setBorderTop(new SolidBorder(0.8f)).setBorderBottom(new SolidBorder(0.8f)));
         }
-        String descripcion = "Servicios educativos — período " + PERIODO.format(factura.getPeriodo());
-        String importe = moneda(factura.getMonto());
+        String importe = moneda(cbte.monto());
         tabla.addCell(celdaItem("1", TextAlignment.RIGHT));
-        tabla.addCell(celdaItem(descripcion, TextAlignment.LEFT));
+        tabla.addCell(celdaItem(cbte.descripcionItem(), TextAlignment.LEFT));
         tabla.addCell(celdaItem("1", TextAlignment.RIGHT));
         tabla.addCell(celdaItem(importe, TextAlignment.RIGHT));
         tabla.addCell(celdaItem(importe, TextAlignment.RIGHT));
         return tabla;
     }
 
-    private Table totales(Factura factura) {
+    private Table totales(Comprobante cbte) {
         Table tabla = new Table(UnitValue.createPercentArray(new float[]{62, 22, 16}))
                 .useAllAvailableWidth()
                 .setBorder(new SolidBorder(0.8f));
         tabla.addCell(celdaSinBorde(""));
         tabla.addCell(celdaSinBorde("Subtotal: $").setTextAlignment(TextAlignment.RIGHT));
-        tabla.addCell(celdaSinBorde(moneda(factura.getMonto())).setTextAlignment(TextAlignment.RIGHT));
+        tabla.addCell(celdaSinBorde(moneda(cbte.monto())).setTextAlignment(TextAlignment.RIGHT));
         tabla.addCell(celdaSinBorde(""));
         tabla.addCell(celdaSinBorde("Dto./Recargo: $").setTextAlignment(TextAlignment.RIGHT));
         tabla.addCell(celdaSinBorde("0,00").setTextAlignment(TextAlignment.RIGHT));
         tabla.addCell(celdaSinBorde(""));
         tabla.addCell(celdaSinBorde("Total: $").setBold().setTextAlignment(TextAlignment.RIGHT));
-        tabla.addCell(celdaSinBorde(moneda(factura.getMonto())).setBold().setTextAlignment(TextAlignment.RIGHT));
+        tabla.addCell(celdaSinBorde(moneda(cbte.monto())).setBold().setTextAlignment(TextAlignment.RIGHT));
         return tabla;
     }
 
-    private Table pieConQr(Factura factura, PdfDocument pdf) {
-        Emisor emisor = factura.getEmisor();
+    private Table pieConQr(Comprobante cbte, PdfDocument pdf) {
+        Emisor emisor = cbte.emisor();
         String url = QrArca.buildUrl(
-                factura.getFechaEmision().toLocalDate(),
+                cbte.fechaEmision().toLocalDate(),
                 Long.parseLong(emisor.getCuit()),
                 emisor.getPuntoVenta(),
-                TIPO_FACTURA_C,
-                factura.getNumeroComprobante(),
-                factura.getMonto(),
+                cbte.tipo(),
+                cbte.numero(),
+                cbte.monto(),
                 DOC_TIPO_DNI,
-                Long.parseLong(factura.getAlumno().getDni()),
-                factura.getCae());
+                Long.parseLong(cbte.alumno().getDni()),
+                cbte.cae());
         Image qr = new Image(new BarcodeQRCode(url).createFormXObject(ColorConstants.BLACK, pdf))
                 .setWidth(85).setHeight(85);
 
@@ -199,8 +272,8 @@ public class PdfService {
                 .add(new Paragraph("Esta Administración Federal no se responsabiliza por los datos "
                         + "ingresados en el detalle de la operación").setFontSize(6.5f).setItalic()));
         tabla.addCell(new Cell().setBorder(Border.NO_BORDER).setTextAlignment(TextAlignment.RIGHT)
-                .add(campo("CAE Nº: ", factura.getCae()).setMarginTop(14))
-                .add(campo("Fecha de Vto. de CAE: ", FECHA.format(factura.getVencimientoCae()))));
+                .add(campo("CAE Nº: ", cbte.cae()).setMarginTop(14))
+                .add(campo("Fecha de Vto. de CAE: ", FECHA.format(cbte.vencimientoCae()))));
         return tabla;
     }
 

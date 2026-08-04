@@ -28,6 +28,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
     }
 
+    @ExceptionHandler(com.bridge.facturacion.notacredito.exception.FacturaNoAnulableException.class)
+    public ResponseEntity<ErrorResponse> handleNoAnulable(
+            com.bridge.facturacion.notacredito.exception.FacturaNoAnulableException ex) {
+        return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
+    }
+
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException ex) {
         return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());

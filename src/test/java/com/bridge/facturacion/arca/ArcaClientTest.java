@@ -193,6 +193,70 @@ class ArcaClientTest {
         assertEquals(LocalDate.of(2026, 7, 18), ultimo.vencimientoCae());
     }
 
+    // ---------- notas de credito (Fase 8, tipo 13) ----------
+
+    @Test
+    void ultimoComprobanteAutorizado_tipo13_consultaLaNumeracionPropia() {
+        stubUltimoAutorizado(7);
+
+        arcaClient.ultimoComprobanteAutorizado(emisor, ArcaClient.NOTA_CREDITO_C);
+
+        // El request pide el ultimo del TIPO 13: la NC no comparte
+        // numeracion con la factura (ARCA numera por CUIT + PV + tipo).
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(soapClient).post(anyString(), eq(ACTION_ULTIMO), captor.capture());
+        assertTrue(captor.getValue().contains("<ar:CbteTipo>13</ar:CbteTipo>"));
+    }
+
+    @Test
+    void solicitarCae_tipo13_armaElRequestConCbtesAsoc() {
+        stubUltimoAutorizado(7);
+        stubSolicitarCae("""
+                <FeCabResp><Resultado>A</Resultado></FeCabResp>
+                <FeDetResp><FECAEDetResponse>
+                    <Resultado>A</Resultado><CAE>75123456789099</CAE><CAEFchVto>20260830</CAEFchVto>
+                </FECAEDetResponse></FeDetResp>
+                """);
+        ComprobanteAsociado facturaOriginal = new ComprobanteAsociado(
+                ArcaClient.FACTURA_C, 1, 42L, "20111111112", LocalDate.of(2026, 7, 4));
+
+        ResultadoEmision resultado = arcaClient.solicitarCae(
+                emisor, ArcaClient.NOTA_CREDITO_C, facturaOriginal,
+                96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 1), 5);
+
+        assertTrue(resultado.aprobada());
+        assertEquals(8, resultado.numeroComprobante()); // numeracion PROPIA: ultimo 13 (7) + 1
+
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(soapClient).post(anyString(), eq(ACTION_CAE), captor.capture());
+        String request = captor.getValue();
+
+        assertTrue(request.contains("<ar:CbteTipo>13</ar:CbteTipo>"));           // NC de tipo C
+        assertTrue(request.contains("<ar:CbtesAsoc>"));                          // referencia obligatoria
+        assertTrue(request.contains("<ar:Tipo>11</ar:Tipo>"));                   // ...a la Factura C
+        assertTrue(request.contains("<ar:Nro>42</ar:Nro>"));                     // ...numero original
+        assertTrue(request.contains("<ar:Cuit>20111111112</ar:Cuit>"));
+        assertTrue(request.contains("<ar:CbteFch>20260704</ar:CbteFch>"));       // fecha de la factura
+    }
+
+    @Test
+    void solicitarCae_tipo11_noIncluyeCbtesAsoc() {
+        stubUltimoAutorizado(41);
+        stubSolicitarCae("""
+                <FeCabResp><Resultado>A</Resultado></FeCabResp>
+                <FeDetResp><FECAEDetResponse>
+                    <Resultado>A</Resultado><CAE>75123456789012</CAE><CAEFchVto>20260718</CAEFchVto>
+                </FECAEDetResponse></FeDetResp>
+                """);
+
+        arcaClient.solicitarCae(emisor, 96, 12345678L, new BigDecimal("15000"),
+                LocalDate.of(2026, 7, 1), 5);
+
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(soapClient).post(anyString(), eq(ACTION_CAE), captor.capture());
+        assertFalse(captor.getValue().contains("CbtesAsoc"));
+    }
+
     @Test
     void consultarUltimoEmitido_devuelveNull_cuandoNoExisteComprobante() {
         // 602 = "no existe comprobante": no es una falla, es "no hay nada".
