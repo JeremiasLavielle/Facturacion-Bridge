@@ -41,3 +41,5 @@ arca/
 frontend-dist/
 
 .docs/
+# Documentacion local de trabajo
+docs/
