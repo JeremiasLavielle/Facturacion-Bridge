@@ -2,8 +2,7 @@ package com.bridge.facturacion.pdf;
 
 import com.bridge.facturacion.alumno.Alumno;
 import com.bridge.facturacion.alumno.CondicionIva;
-import com.bridge.facturacion.arca.Ambiente;
-import com.bridge.facturacion.arca.ArcaProperties;
+import com.bridge.facturacion.emisor.Emisor;
 import com.bridge.facturacion.factura.Factura;
 import com.bridge.facturacion.factura.FacturaRepository;
 import org.junit.jupiter.api.Test;
@@ -20,24 +19,28 @@ class PdfMuestraTest {
 
     @Test
     void generaUnComprobanteDeMuestra_yLoGuardaEnTarget() throws Exception {
-        // Emisor y config como los reales (datos de fantasia).
-        ArcaProperties arca = new ArcaProperties(
-                "20463447277", 1, "c", "k", "u1", "u2", Ambiente.HOMOLOGACION, 15, 45);
-        EmisorProperties emisor = new EmisorProperties(
-                "Instituto Bridge",
-                "Nombre y Apellido del Titular",
-                "Avenida 44 Nro. 1234 - (1900) La Plata, Buenos Aires",
-                "Responsable Monotributo",
-                "Exento",
-                "01/03/2018");
-        PdfService pdfService = new PdfService(mock(FacturaRepository.class), arca, emisor);
+        // Emisor como los reales (datos de fantasia). Fase 7: el PDF sale
+        // del emisor de la factura, no de una config global.
+        Emisor emisor = new Emisor();
+        emisor.setId(1L);
+        emisor.setCuit("20463447277");
+        emisor.setNombreFantasia("Instituto Bridge");
+        emisor.setRazonSocial("Nombre y Apellido del Titular");
+        emisor.setDomicilio("Avenida 44 Nro. 1234 - (1900) La Plata, Buenos Aires");
+        emisor.setCondicionFiscal("Responsable Monotributo");
+        emisor.setIngresosBrutos("Exento");
+        emisor.setInicioActividades("01/03/2018");
+        emisor.setPuntoVenta(1);
+        emisor.setCertPath("20463447277/certificado.crt");
+        emisor.setKeyPath("20463447277/clave-privada.key");
+        PdfService pdfService = new PdfService(mock(FacturaRepository.class));
 
         Alumno alumno = new Alumno();
         alumno.setNombre("Juan Ignacio Perez");
         alumno.setDni("38456789");
         alumno.setCondicionIva(CondicionIva.CONSUMIDOR_FINAL);
 
-        Factura factura = Factura.pendiente(alumno, new BigDecimal("45000.00"), LocalDate.of(2026, 7, 1));
+        Factura factura = Factura.pendiente(alumno, emisor, new BigDecimal("45000.00"), LocalDate.of(2026, 7, 1));
         factura.marcarEmitida("86270536276914", LocalDate.of(2026, 7, 18), 42L);
 
         byte[] pdf = pdfService.generar(factura);

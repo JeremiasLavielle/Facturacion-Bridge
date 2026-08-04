@@ -29,10 +29,5 @@ app:
     email: ${OPERADOR_EMAIL:}
     password: ${OPERADOR_PASSWORD:}
 
-emisor:
-  nombre-fantasia: "Instituto Bridge"
-  razon-social: "Nombre y Apellido del titular"
-  domicilio: "Domicilio del instituto - Ciudad, Provincia"
-  condicion-fiscal: "Responsable Monotributo"
-  ingresos-brutos: "Exento"
-  inicio-actividades: "01/01/2020"
+# Los datos fiscales del emisor (CUIT, punto de venta, certificado,
+# cabecera/pie del PDF) viven en la tabla "emisores" desde la Fase 7.

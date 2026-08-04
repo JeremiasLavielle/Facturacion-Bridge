@@ -1,5 +1,6 @@
 package com.bridge.facturacion.arca;
 
+import com.bridge.facturacion.emisor.Emisor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Cliente WSFE. Desde la Fase 7 cada operacion recibe el {@link Emisor}
+ * y usa SU CUIT, punto de venta y ticket WSAA (la numeracion la da ARCA
+ * por CUIT + punto de venta + tipo de comprobante).
+ */
 @Service
 public class ArcaClient {
 
@@ -33,14 +39,14 @@ public class ArcaClient {
         this.soapClient = soapClient;
     }
 
-    public long ultimoComprobanteAutorizado() {
+    public long ultimoComprobanteAutorizado(Emisor emisor) {
         String body = """
                 <ar:FECompUltimoAutorizado>
                     %s
                     <ar:PtoVta>%d</ar:PtoVta>
                     <ar:CbteTipo>%d</ar:CbteTipo>
                 </ar:FECompUltimoAutorizado>
-                """.formatted(authXml(), properties.puntoVenta(), FACTURA_C);
+                """.formatted(authXml(emisor), emisor.getPuntoVenta(), FACTURA_C);
 
         Document doc = call("FECompUltimoAutorizado", body);
         throwIfErrors(doc);
@@ -51,17 +57,17 @@ public class ArcaClient {
         return Long.parseLong(nro);
     }
 
-    public ResultadoEmision solicitarCae(int docTipo, long docNro, BigDecimal importe,
+    public ResultadoEmision solicitarCae(Emisor emisor, int docTipo, long docNro, BigDecimal importe,
                                          LocalDate periodo, int condicionIvaReceptor) {
 
-        long numero = ultimoComprobanteAutorizado() + 1;
+        long numero = ultimoComprobanteAutorizado(emisor) + 1;
         LocalDate hoy = LocalDate.now();
         LocalDate desde = periodo.withDayOfMonth(1);
         LocalDate hasta = periodo.withDayOfMonth(periodo.lengthOfMonth());
         String monto = importe.setScale(2, RoundingMode.HALF_UP).toPlainString();
 
-        log.info("Solicitando CAE: cbte {} pv {} doc {}/{} importe {}",
-                numero, properties.puntoVenta(), docTipo, docNro, monto);
+        log.info("Solicitando CAE: emisor {} cbte {} pv {} doc {}/{} importe {}",
+                emisor.getCuit(), numero, emisor.getPuntoVenta(), docTipo, docNro, monto);
 
         String body = """
                 <ar:FECAESolicitar>
@@ -96,7 +102,7 @@ public class ArcaClient {
                         </ar:FeDetReq>
                     </ar:FeCAEReq>
                 </ar:FECAESolicitar>
-                """.formatted(authXml(), properties.puntoVenta(), FACTURA_C,
+                """.formatted(authXml(emisor), emisor.getPuntoVenta(), FACTURA_C,
                 CONCEPTO_SERVICIOS, docTipo, docNro, numero, numero,
                 FECHA_ARCA.format(hoy), monto, monto,
                 FECHA_ARCA.format(desde), FECHA_ARCA.format(hasta), FECHA_ARCA.format(hoy),
@@ -107,8 +113,8 @@ public class ArcaClient {
         return parseResultado(doc, numero);
     }
 
-    public ComprobanteEmitido consultarUltimoEmitido() {
-        long ultimo = ultimoComprobanteAutorizado();
+    public ComprobanteEmitido consultarUltimoEmitido(Emisor emisor) {
+        long ultimo = ultimoComprobanteAutorizado(emisor);
         if (ultimo == 0) {
             return null; // punto de venta sin comprobantes todavia
         }
@@ -121,7 +127,7 @@ public class ArcaClient {
                         <ar:PtoVta>%d</ar:PtoVta>
                     </ar:FeCompConsReq>
                 </ar:FECompConsultar>
-                """.formatted(authXml(), FACTURA_C, ultimo, properties.puntoVenta());
+                """.formatted(authXml(emisor), FACTURA_C, ultimo, emisor.getPuntoVenta());
 
         Document doc = call("FECompConsultar", body);
 
@@ -145,14 +151,14 @@ public class ArcaClient {
 
     // ---------- helpers ----------
 
-    private String authXml() {
-        Credenciales cred = authService.getCredenciales();
+    private String authXml(Emisor emisor) {
+        Credenciales cred = authService.getCredenciales(emisor);
         return """
                 <ar:Auth>
                     <ar:Token>%s</ar:Token>
                     <ar:Sign>%s</ar:Sign>
                     <ar:Cuit>%s</ar:Cuit>
-                </ar:Auth>""".formatted(cred.token(), cred.sign(), properties.cuitEmisor());
+                </ar:Auth>""".formatted(cred.token(), cred.sign(), emisor.getCuit());
     }
 
     private Document call(String metodo, String body) {

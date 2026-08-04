@@ -1,9 +1,9 @@
 package com.bridge.facturacion.pdf;
 
+import com.bridge.facturacion.EmisoresDePrueba;
 import com.bridge.facturacion.alumno.Alumno;
 import com.bridge.facturacion.alumno.CondicionIva;
-import com.bridge.facturacion.arca.Ambiente;
-import com.bridge.facturacion.arca.ArcaProperties;
+import com.bridge.facturacion.emisor.Emisor;
 import com.bridge.facturacion.factura.Factura;
 import com.bridge.facturacion.factura.FacturaRepository;
 import com.bridge.facturacion.factura.exception.FacturaNoEmitidaException;
@@ -33,15 +33,12 @@ class PdfServiceTest {
         alumno.setDni("12345678");
         alumno.setCondicionIva(CondicionIva.CONSUMIDOR_FINAL);
 
-        factura = Factura.pendiente(alumno, new BigDecimal("15000.00"), LocalDate.of(2026, 7, 1));
+        // Fase 7: el PDF sale del EMISOR DE LA FACTURA.
+        Emisor emisor = EmisoresDePrueba.emisor(1L, "20463447277", 1);
+        factura = Factura.pendiente(alumno, emisor, new BigDecimal("15000.00"), LocalDate.of(2026, 7, 1));
 
         facturaRepository = mock(FacturaRepository.class);
-        ArcaProperties arca = new ArcaProperties(
-                "20463447277", 1, "c", "k", "u1", "u2", Ambiente.HOMOLOGACION, 15, 45);
-        EmisorProperties emisor = new EmisorProperties(
-                "Instituto Bridge", "Titular Bridge", "Calle 1 - La Plata",
-                "Responsable Monotributo", "Exento", "01/01/2020");
-        pdfService = new PdfService(facturaRepository, arca, emisor);
+        pdfService = new PdfService(facturaRepository);
     }
 
     @Test

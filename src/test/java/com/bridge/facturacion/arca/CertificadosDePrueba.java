@@ -34,6 +34,21 @@ public final class CertificadosDePrueba {
     private CertificadosDePrueba() {}
 
     public static Rutas generarEn(Path dir) throws Exception {
+        return generar(dir.resolve("cert.pem"), dir.resolve("key.pem"));
+    }
+
+    /**
+     * Genera certificado y clave con la convencion REAL de la Fase 7:
+     * {@code <base>/<cuit>/certificado.crt} y {@code <base>/<cuit>/clave-privada.key},
+     * como los espera un {@code Emisor} cuyo certs-dir es {@code base}.
+     */
+    public static Rutas generarParaCuit(Path base, String cuit) throws Exception {
+        Path dir = base.resolve(cuit);
+        java.nio.file.Files.createDirectories(dir);
+        return generar(dir.resolve("certificado.crt"), dir.resolve("clave-privada.key"));
+    }
+
+    private static Rutas generar(Path certPath, Path keyPath) throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
         KeyPair keyPair = generator.generateKeyPair();
@@ -50,8 +65,6 @@ public final class CertificadosDePrueba {
         X509Certificate cert = new JcaX509CertificateConverter()
                 .setProvider("BC").getCertificate(holder);
 
-        Path certPath = dir.resolve("cert.pem");
-        Path keyPath = dir.resolve("key.pem");
         escribirPem(certPath, cert);
         escribirPem(keyPath, keyPair.getPrivate());
         return new Rutas(certPath.toString(), keyPath.toString());

@@ -1,6 +1,7 @@
 package com.bridge.facturacion.factura;
 
 import com.bridge.facturacion.alumno.Alumno;
+import com.bridge.facturacion.emisor.Emisor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,6 +21,9 @@ public class Factura {
     @ManyToOne
     @JoinColumn(name = "alumno_id", nullable = false)
     private Alumno alumno;
+    @ManyToOne
+    @JoinColumn(name = "emisor_id", nullable = false)
+    private Emisor emisor;
     @Column(nullable = false)
     private BigDecimal monto;
     @Column(nullable = false)
@@ -33,9 +37,10 @@ public class Factura {
     private Long numeroComprobante;
     private String mensajeError;
 
-    public static Factura pendiente(Alumno alumno, BigDecimal monto, LocalDate periodo) {
+    public static Factura pendiente(Alumno alumno, Emisor emisor, BigDecimal monto, LocalDate periodo) {
         Factura factura = new Factura();
         factura.alumno = alumno;
+        factura.emisor = emisor;
         factura.monto = monto;
         factura.periodo = periodo;
         factura.estado = EstadoFactura.PENDIENTE;

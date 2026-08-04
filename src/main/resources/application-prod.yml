@@ -13,10 +13,7 @@ server:
         secure: true
 
 arca:
-  cuit-emisor: ${ARCA_CUIT}
-  punto-venta: ${ARCA_PUNTO_VENTA}
-  certificado: ${ARCA_CERT_PATH}
-  clave-privada: ${ARCA_KEY_PATH}
+  certs-dir: ${ARCA_CERTS_DIR:/arca}
   url-wsaa: ${ARCA_URL_WSAA}
   url-wsfe: ${ARCA_URL_WSFE}
   ambiente: ${ARCA_AMBIENTE}

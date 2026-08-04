@@ -1,12 +1,21 @@
 package com.bridge.facturacion.arca;
 
+import com.bridge.facturacion.emisor.Emisor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 
+import java.nio.file.Path;
 import java.time.OffsetDateTime;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Autenticacion WSAA. Desde la Fase 7 el ticket se cachea POR CUIT:
+ * cada emisor firma el TRA con SU certificado y obtiene su propio ticket,
+ * sin pisar el de los demas.
+ */
 @Service
 public class ArcaAuthService {
 
@@ -15,26 +24,30 @@ public class ArcaAuthService {
     private final ArcaProperties properties;
     private final SoapClient soapClient;
 
-    private volatile Credenciales cache;
+    private final Map<String, Credenciales> cachePorCuit = new ConcurrentHashMap<>();
 
     public ArcaAuthService(ArcaProperties properties, SoapClient soapClient) {
         this.properties = properties;
         this.soapClient = soapClient;
     }
 
-    public synchronized Credenciales getCredenciales() {
+    public synchronized Credenciales getCredenciales(Emisor emisor) {
+        Credenciales cache = cachePorCuit.get(emisor.getCuit());
         if (cache != null && cache.vigente()) {
             return cache;
         }
-        log.info("Solicitando nuevo ticket de acceso a WSAA ({})", properties.ambiente());
-        cache = login();
-        log.info("Ticket WSAA obtenido, valido hasta {}", cache.expiration());
-        return cache;
+        log.info("Solicitando ticket WSAA para CUIT {} ({})", emisor.getCuit(), properties.ambiente());
+        Credenciales nuevas = login(emisor);
+        cachePorCuit.put(emisor.getCuit(), nuevas);
+        log.info("Ticket WSAA de CUIT {} obtenido, valido hasta {}", emisor.getCuit(), nuevas.expiration());
+        return nuevas;
     }
 
-    private Credenciales login() {
+    private Credenciales login(Emisor emisor) {
         String tra = TraBuilder.build();
-        String cms = CmsSigner.signBase64(tra, properties.certificado(), properties.clavePrivada());
+        String cms = CmsSigner.signBase64(tra,
+                rutaAbsoluta(emisor.getCertPath()),
+                rutaAbsoluta(emisor.getKeyPath()));
 
         String envelope = """
                 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
@@ -62,5 +75,10 @@ public class ArcaAuthService {
             throw new ArcaException("Respuesta de WSAA incompleta (falta token/sign/expirationTime)");
         }
         return new Credenciales(token, sign, OffsetDateTime.parse(expiration).toInstant());
+    }
+
+    /** Los paths del emisor son relativos a arca.certs-dir. */
+    private String rutaAbsoluta(String pathRelativo) {
+        return Path.of(properties.certsDir()).resolve(pathRelativo).toString();
     }
 }

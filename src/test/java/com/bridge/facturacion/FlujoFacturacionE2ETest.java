@@ -140,7 +140,14 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
         MockHttpSession sesion = (MockHttpSession) login.getRequest().getSession(false);
         assertNotNull(sesion, "el login debe dejar una sesion creada");
 
-        // 2. Alta de alumno.
+        // 2. Los DOS emisores de la migracion V6 estan disponibles.
+        mockMvc.perform(get("/emisores").session(sesion))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].puntoVenta").value(1))
+                .andExpect(jsonPath("$[1].puntoVenta").value(2));
+
+        // 3. Alta de alumnos (uno para cada emisor).
         MvcResult alumno = mockMvc.perform(post("/alumnos").session(sesion).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -149,32 +156,65 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
                 .andReturn();
         long alumnoId = idDe(alumno);
 
-        // 3. Alta de factura del periodo julio 2026.
+        MvcResult alumno2 = mockMvc.perform(post("/alumnos").session(sesion).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nombre":"Alumno E2E Dos","dni":"30123457","condicionIva":"CONSUMIDOR_FINAL"}"""))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long alumno2Id = idDe(alumno2);
+
+        // 4. Alta de facturas del periodo julio 2026: una CON CADA EMISOR.
         MvcResult factura = mockMvc.perform(post("/facturas").session(sesion).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"alumnoId":%d,"monto":15000.00,"periodo":"2026-07-01"}"""
+                                {"alumnoId":%d,"emisorId":1,"monto":15000.00,"periodo":"2026-07-01"}"""
                                 .formatted(alumnoId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.estado").value("PENDIENTE"))
+                .andExpect(jsonPath("$.emisor.puntoVenta").value(1))
                 .andReturn();
         long facturaId = idDe(factura);
 
-        // 4. Emision: dispara WSAA (firma CMS real) + WSFE contra la ARCA falsa.
+        MvcResult factura2 = mockMvc.perform(post("/facturas").session(sesion).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"alumnoId":%d,"emisorId":2,"monto":18000.00,"periodo":"2026-07-01"}"""
+                                .formatted(alumno2Id)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.emisor.puntoVenta").value(2))
+                .andReturn();
+        long factura2Id = idDe(factura2);
+
+        // 5. Emision: dispara WSAA (firma CMS real) + WSFE contra la ARCA falsa.
         mockMvc.perform(post("/facturas/{id}/emitir", facturaId).session(sesion).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("EMITIDA"))
                 .andExpect(jsonPath("$.cae").value(CAE))
                 .andExpect(jsonPath("$.numeroComprobante").value(42)); // ultimo (41) + 1
 
-        // 5. Descarga del PDF del comprobante.
+        mockMvc.perform(post("/facturas/{id}/emitir", factura2Id).session(sesion).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("EMITIDA"))
+                .andExpect(jsonPath("$.emisor.puntoVenta").value(2));
+
+        // 6. Descarga de los PDFs (cada uno con los datos de su emisor).
         byte[] pdf = mockMvc.perform(get("/facturas/{id}/pdf", facturaId).session(sesion))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"factura-0001-00000042.pdf\""))
                 .andReturn().getResponse().getContentAsByteArray();
 
         assertTrue(pdf.length > 1000, "el PDF deberia tener contenido real");
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
+
+        // El PDF del emisor 2 sale con SU punto de venta en el nombre.
+        mockMvc.perform(get("/facturas/{id}/pdf", factura2Id).session(sesion))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"factura-0002-00000042.pdf\""));
     }
 
     private long idDe(MvcResult resultado) throws Exception {

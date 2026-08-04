@@ -16,6 +16,8 @@ import java.time.LocalDate;
 public class FacturaRequestDTO {
     @NotNull
     private Long alumnoId;
+    @NotNull
+    private Long emisorId;
     @NotNull @Positive
     private BigDecimal monto;
     @NotNull

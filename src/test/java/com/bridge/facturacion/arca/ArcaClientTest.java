@@ -1,5 +1,7 @@
 package com.bridge.facturacion.arca;
 
+import com.bridge.facturacion.EmisoresDePrueba;
+import com.bridge.facturacion.emisor.Emisor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -9,6 +11,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -21,14 +24,16 @@ class ArcaClientTest {
 
     private SoapClient soapClient;
     private ArcaClient arcaClient;
+    private Emisor emisor;
 
     @BeforeEach
     void setUp() {
         ArcaProperties properties = new ArcaProperties(
-                "20111111112", 1, "cert", "key",
-                "http://test/wsaa", "http://test/wsfe", Ambiente.HOMOLOGACION, 15, 45);
+                "certs", "http://test/wsaa", "http://test/wsfe",
+                Ambiente.HOMOLOGACION, 15, 45);
+        emisor = EmisoresDePrueba.emisor(1L, "20111111112", 1);
         ArcaAuthService authService = mock(ArcaAuthService.class);
-        when(authService.getCredenciales())
+        when(authService.getCredenciales(any(Emisor.class)))
                 .thenReturn(new Credenciales("T", "S", Instant.now().plusSeconds(43200)));
 
         soapClient = spy(new SoapClient(properties));
@@ -69,7 +74,7 @@ class ArcaClientTest {
     void ultimoComprobanteAutorizado_devuelveElNumero() {
         stubUltimoAutorizado(41);
 
-        assertEquals(41, arcaClient.ultimoComprobanteAutorizado());
+        assertEquals(41, arcaClient.ultimoComprobanteAutorizado(emisor));
     }
 
     @Test
@@ -85,7 +90,7 @@ class ArcaClientTest {
                 """);
 
         ResultadoEmision resultado = arcaClient.solicitarCae(
-                96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 1), 5);
+                emisor, 96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 1), 5);
 
         assertTrue(resultado.aprobada());
         assertEquals(42, resultado.numeroComprobante()); // ultimo (41) + 1
@@ -103,13 +108,15 @@ class ArcaClientTest {
                 </FECAEDetResponse></FeDetResp>
                 """);
 
-        arcaClient.solicitarCae(96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 15), 5);
+        arcaClient.solicitarCae(emisor, 96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 15), 5);
 
         // Capturamos el XML que se le mando a ARCA y verificamos lo critico.
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(soapClient).post(anyString(), eq(ACTION_CAE), captor.capture());
         String request = captor.getValue();
 
+        assertTrue(request.contains("<ar:Cuit>20111111112</ar:Cuit>"));          // CUIT del EMISOR
+        assertTrue(request.contains("<ar:PtoVta>1</ar:PtoVta>"));                // PV del EMISOR
         assertTrue(request.contains("<ar:CbteTipo>11</ar:CbteTipo>"));           // Factura C
         assertTrue(request.contains("<ar:CbteDesde>42</ar:CbteDesde>"));         // numeracion de ARCA + 1
         assertTrue(request.contains("<ar:ImpTotal>15000.00</ar:ImpTotal>"));     // 2 decimales
@@ -133,7 +140,7 @@ class ArcaClientTest {
                 """);
 
         ResultadoEmision resultado = arcaClient.solicitarCae(
-                96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 1), 5);
+                emisor, 96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 1), 5);
 
         assertFalse(resultado.aprobada());
         assertNull(resultado.cae());
@@ -151,7 +158,7 @@ class ArcaClientTest {
                 """);
 
         ArcaException ex = assertThrows(ArcaException.class,
-                () -> arcaClient.solicitarCae(96, 12345678L, new BigDecimal("15000"),
+                () -> arcaClient.solicitarCae(emisor, 96, 12345678L, new BigDecimal("15000"),
                         LocalDate.of(2026, 7, 1), 5));
         assertTrue(ex.getMessage().contains("600"));
     }
@@ -176,7 +183,7 @@ class ArcaClientTest {
         doReturn(soapClient.parse(xml))
                 .when(soapClient).post(anyString(), eq(ACTION_CONSULTAR), anyString());
 
-        ComprobanteEmitido ultimo = arcaClient.consultarUltimoEmitido();
+        ComprobanteEmitido ultimo = arcaClient.consultarUltimoEmitido(emisor);
 
         assertEquals(42, ultimo.numero());
         assertEquals(12345678L, ultimo.docNro());
@@ -200,6 +207,6 @@ class ArcaClientTest {
         doReturn(soapClient.parse(xml))
                 .when(soapClient).post(anyString(), eq(ACTION_CONSULTAR), anyString());
 
-        assertNull(arcaClient.consultarUltimoEmitido());
+        assertNull(arcaClient.consultarUltimoEmitido(emisor));
     }
 }

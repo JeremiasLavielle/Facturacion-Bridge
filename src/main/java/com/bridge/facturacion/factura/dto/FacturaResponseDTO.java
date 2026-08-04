@@ -1,6 +1,7 @@
 package com.bridge.facturacion.factura.dto;
 
 import com.bridge.facturacion.alumno.dto.AlumnoResponseDTO;
+import com.bridge.facturacion.emisor.dto.EmisorResponseDTO;
 import com.bridge.facturacion.factura.EstadoFactura;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class FacturaResponseDTO {
     private AlumnoResponseDTO alumno;
+    private EmisorResponseDTO emisor;
     private Long id;
     private BigDecimal monto;
     private LocalDate periodo;

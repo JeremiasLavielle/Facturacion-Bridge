@@ -27,9 +27,11 @@ public abstract class IntegracionTestBase {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
 
+        // Fase 7: los certificados van en <certs-dir>/<cuit>/..., como los
+        // referencia la tabla "emisores" (migracion V6). Ambos emisores de
+        // homologacion comparten el CUIT 20463447277.
         Path dir = Files.createTempDirectory("arca-certs-test");
-        CertificadosDePrueba.Rutas rutas = CertificadosDePrueba.generarEn(dir);
-        registry.add("arca.certificado", rutas::cert);
-        registry.add("arca.clave-privada", rutas::key);
+        CertificadosDePrueba.generarParaCuit(dir, "20463447277");
+        registry.add("arca.certs-dir", dir::toString);
     }
 }

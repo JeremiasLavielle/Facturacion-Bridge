@@ -1,5 +1,7 @@
 package com.bridge.facturacion.arca;
 
+import com.bridge.facturacion.EmisoresDePrueba;
+import com.bridge.facturacion.emisor.Emisor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -14,18 +16,28 @@ import static org.mockito.Mockito.*;
 
 class ArcaAuthServiceTest {
 
+    private static final String CUIT_UNO = "20111111112";
+    private static final String CUIT_DOS = "20222222223";
+
     @TempDir
     Path dir;
 
     private SoapClient soapClient;
     private ArcaAuthService authService;
+    private Emisor emisorUno;
+    private Emisor emisorDos;
 
     @BeforeEach
     void setUp() throws Exception {
-        CertificadosDePrueba.Rutas rutas = CertificadosDePrueba.generarEn(dir);
+        // Un certificado POR CUIT, con la convencion real <cuit>/certificado.crt.
+        CertificadosDePrueba.generarParaCuit(dir, CUIT_UNO);
+        CertificadosDePrueba.generarParaCuit(dir, CUIT_DOS);
+        emisorUno = EmisoresDePrueba.emisor(1L, CUIT_UNO, 1);
+        emisorDos = EmisoresDePrueba.emisor(2L, CUIT_DOS, 1);
+
         ArcaProperties properties = new ArcaProperties(
-                "20111111112", 1, rutas.cert(), rutas.key(),
-                "http://test/wsaa", "http://test/wsfe", Ambiente.HOMOLOGACION, 15, 45);
+                dir.toString(), "http://test/wsaa", "http://test/wsfe",
+                Ambiente.HOMOLOGACION, 15, 45);
 
         // spy: objeto REAL (parse y firstText funcionan de verdad),
         // pero le stubeamos post() para no salir a internet.
@@ -58,7 +70,7 @@ class ArcaAuthServiceTest {
     void getCredenciales_haceLoginYDevuelveTokenYSign() {
         stubRespuestaWsaa(OffsetDateTime.now().plusHours(12));
 
-        Credenciales credenciales = authService.getCredenciales();
+        Credenciales credenciales = authService.getCredenciales(emisorUno);
 
         assertEquals("TOKEN-TEST", credenciales.token());
         assertEquals("SIGN-TEST", credenciales.sign());
@@ -69,9 +81,9 @@ class ArcaAuthServiceTest {
     void getCredenciales_cachea_noVuelveALlamarAWsaa() {
         stubRespuestaWsaa(OffsetDateTime.now().plusHours(12));
 
-        authService.getCredenciales();
-        authService.getCredenciales();
-        authService.getCredenciales();
+        authService.getCredenciales(emisorUno);
+        authService.getCredenciales(emisorUno);
+        authService.getCredenciales(emisorUno);
 
         verify(soapClient, times(1)).post(anyString(), anyString(), anyString());
     }
@@ -80,8 +92,22 @@ class ArcaAuthServiceTest {
     void getCredenciales_renueva_cuandoElTicketEstaPorVencer() {
         stubRespuestaWsaa(OffsetDateTime.now().plusMinutes(1));
 
-        authService.getCredenciales();
-        authService.getCredenciales();
+        authService.getCredenciales(emisorUno);
+        authService.getCredenciales(emisorUno);
+
+        verify(soapClient, times(2)).post(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void getCredenciales_unTicketPorCuit_noSePisanEntreSi() {
+        stubRespuestaWsaa(OffsetDateTime.now().plusHours(12));
+
+        // Cada CUIT hace SU login (2 posts), y despues cada uno usa
+        // SU ticket cacheado (ningun post extra).
+        authService.getCredenciales(emisorUno);
+        authService.getCredenciales(emisorDos);
+        authService.getCredenciales(emisorUno);
+        authService.getCredenciales(emisorDos);
 
         verify(soapClient, times(2)).post(anyString(), anyString(), anyString());
     }

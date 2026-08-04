@@ -1,10 +1,11 @@
 package com.bridge.facturacion.factura;
 
 import com.bridge.facturacion.alumno.AlumnoMapper;
+import com.bridge.facturacion.emisor.EmisorMapper;
 import com.bridge.facturacion.factura.dto.FacturaResponseDTO;
 import org.mapstruct.Mapper;
 
-@Mapper(componentModel = "spring", uses = { AlumnoMapper.class })
+@Mapper(componentModel = "spring", uses = { AlumnoMapper.class, EmisorMapper.class })
 public interface FacturaMapper {
  FacturaResponseDTO toResponse(Factura factura);
 }

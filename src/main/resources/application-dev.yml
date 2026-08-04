@@ -10,10 +10,9 @@ app:
     password: ${OPERADOR_PASSWORD:cambiar123}
 
 arca:
-  cuit-emisor: "20463447277"
-  punto-venta: 1
-  certificado: ${ARCA_CERT_PATH}
-  clave-privada: ${ARCA_KEY_PATH}
+  # Directorio base de certificados; cada emisor guarda en la tabla
+  # "emisores" sus paths relativos (ej. 20463447277/certificado.crt).
+  certs-dir: ${ARCA_CERTS_DIR}
   url-wsaa: https://wsaahomo.afip.gov.ar/ws/services/LoginCms
   url-wsfe: https://wswhomo.afip.gov.ar/wsfev1/service.asmx
   ambiente: HOMOLOGACION

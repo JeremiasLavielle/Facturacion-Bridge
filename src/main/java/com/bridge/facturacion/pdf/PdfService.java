@@ -1,6 +1,6 @@
 package com.bridge.facturacion.pdf;
 
-import com.bridge.facturacion.arca.ArcaProperties;
+import com.bridge.facturacion.emisor.Emisor;
 import com.bridge.facturacion.factura.EstadoFactura;
 import com.bridge.facturacion.factura.Factura;
 import com.bridge.facturacion.factura.FacturaRepository;
@@ -31,6 +31,11 @@ import java.text.DecimalFormatSymbols;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
+/**
+ * Genera el PDF del comprobante. Desde la Fase 7 la cabecera, el pie y el
+ * QR salen del EMISOR DE LA FACTURA (factura.getEmisor()), no de una
+ * configuracion global.
+ */
 @Service
 public class PdfService {
 
@@ -40,18 +45,15 @@ public class PdfService {
     private static final int DOC_TIPO_DNI = 96;
 
     private final FacturaRepository facturaRepository;
-    private final ArcaProperties arca;
-    private final EmisorProperties emisor;
 
-    public PdfService(FacturaRepository facturaRepository, ArcaProperties arca, EmisorProperties emisor) {
+    public PdfService(FacturaRepository facturaRepository) {
         this.facturaRepository = facturaRepository;
-        this.arca = arca;
-        this.emisor = emisor;
     }
 
     /** Nombre de archivo estilo "factura-0001-00000042.pdf". */
     public String nombreArchivo(Factura factura) {
-        return "factura-%04d-%08d.pdf".formatted(arca.puntoVenta(), factura.getNumeroComprobante());
+        return "factura-%04d-%08d.pdf".formatted(
+                factura.getEmisor().getPuntoVenta(), factura.getNumeroComprobante());
     }
 
     @Transactional(readOnly = true)
@@ -87,16 +89,17 @@ public class PdfService {
     // ---------------- secciones ----------------
 
     private Table cabecera(Factura factura) {
+        Emisor emisor = factura.getEmisor();
         Table tabla = new Table(UnitValue.createPercentArray(new float[]{44, 12, 44}))
                 .useAllAvailableWidth();
 
         Cell izquierda = celdaConBorde()
-                .add(new Paragraph(emisor.nombreFantasia())
+                .add(new Paragraph(emisor.getNombreFantasia())
                         .setBold().setFontSize(15).setTextAlignment(TextAlignment.CENTER)
                         .setMarginTop(8).setMarginBottom(10))
-                .add(centrado(emisor.razonSocial()))
-                .add(centrado(emisor.domicilio()))
-                .add(new Paragraph(emisor.condicionFiscal())
+                .add(centrado(emisor.getRazonSocial()))
+                .add(centrado(emisor.getDomicilio()))
+                .add(new Paragraph(emisor.getCondicionFiscal())
                         .setBold().setFontSize(9).setTextAlignment(TextAlignment.CENTER)
                         .setMarginTop(4));
 
@@ -110,13 +113,13 @@ public class PdfService {
 
         Cell derecha = celdaConBorde().setPaddingLeft(10)
                 .add(new Paragraph("FACTURA").setBold().setFontSize(18).setMarginTop(4))
-                .add(new Paragraph("%04d-%08d".formatted(arca.puntoVenta(), factura.getNumeroComprobante()))
+                .add(new Paragraph("%04d-%08d".formatted(emisor.getPuntoVenta(), factura.getNumeroComprobante()))
                         .setBold().setFontSize(11))
                 .add(campo("Fecha de Emisión: ", FECHA.format(factura.getFechaEmision())))
                 .add(new Paragraph("").setFontSize(6))
-                .add(campo("CUIT: ", formatearCuit(arca.cuitEmisor())))
-                .add(campo("Ingresos Brutos: ", emisor.ingresosBrutos()))
-                .add(campo("Inicio de Actividades: ", emisor.inicioActividades()));
+                .add(campo("CUIT: ", formatearCuit(emisor.getCuit())))
+                .add(campo("Ingresos Brutos: ", emisor.getIngresosBrutos()))
+                .add(campo("Inicio de Actividades: ", emisor.getInicioActividades()));
 
         tabla.addCell(izquierda).addCell(centro).addCell(derecha);
         return tabla;
@@ -173,10 +176,11 @@ public class PdfService {
     }
 
     private Table pieConQr(Factura factura, PdfDocument pdf) {
+        Emisor emisor = factura.getEmisor();
         String url = QrArca.buildUrl(
                 factura.getFechaEmision().toLocalDate(),
-                Long.parseLong(arca.cuitEmisor()),
-                arca.puntoVenta(),
+                Long.parseLong(emisor.getCuit()),
+                emisor.getPuntoVenta(),
                 TIPO_FACTURA_C,
                 factura.getNumeroComprobante(),
                 factura.getMonto(),
