@@ -1,5 +1,6 @@
 package com.bridge.facturacion.auth;
 
+import com.bridge.facturacion.IntegracionTestBase;
 import com.bridge.facturacion.usuario.Usuario;
 import com.bridge.facturacion.usuario.UsuarioRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -7,11 +8,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-// Boot 4 modularizado: la anotación se mudó de
-// org.springframework.boot.test.autoconfigure.web.servlet (Boot 3)
-// al módulo propio de webmvc-test.
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -25,10 +21,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-// Boot 4: @SpringBootTest ya no trae MockMvc solo; hace falta @AutoConfigureMockMvc.
-@SpringBootTest
-@AutoConfigureMockMvc
-class AuthControllerTest {
+// Hereda @SpringBootTest + @AutoConfigureMockMvc y la base Testcontainers.
+class AuthControllerTest extends IntegracionTestBase {
 
     private static final String EMAIL = "operador@test.local";
     private static final String PASSWORD = "clave-de-prueba";
@@ -36,7 +30,10 @@ class AuthControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PasswordEncoder passwordEncoder;
-    @Autowired private ObjectMapper objectMapper;
+    // No se inyecta: Boot 4 migro a Jackson 3 (tools.jackson) y ya no expone
+    // un bean del ObjectMapper viejo (com.fasterxml). Aca solo lo usamos para
+    // parsear JSON del response, asi que alcanza con instanciarlo.
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void crearOperadorDePrueba() {

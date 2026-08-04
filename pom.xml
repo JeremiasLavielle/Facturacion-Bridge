@@ -95,6 +95,13 @@
             <artifactId>spring-boot-starter-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Testcontainers: levanta un Postgres descartable por corrida de tests,
+             en vez de depender del Postgres dev con datos viejos. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
@@ -206,7 +213,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
+                    <!-- user.timezone: Windows reporta el nombre viejo de la zona
+                         (America/Buenos_Aires) y postgres:17 ya no lo acepta. -->
+                    <argLine>-javaagent:${org.mockito:mockito-core:jar} -Duser.timezone=America/Argentina/Buenos_Aires</argLine>
                 </configuration>
             </plugin>
         </plugins>

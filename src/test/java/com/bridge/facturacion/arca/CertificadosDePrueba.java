@@ -20,9 +20,10 @@ import java.time.Instant;
 import java.util.Date;
 
 
-final class CertificadosDePrueba {
+// public: tambien lo usa la base de tests de integracion (paquete raiz).
+public final class CertificadosDePrueba {
 
-    record Rutas(String cert, String key) {}
+    public record Rutas(String cert, String key) {}
 
     static {
         if (Security.getProvider("BC") == null) {
@@ -32,7 +33,7 @@ final class CertificadosDePrueba {
 
     private CertificadosDePrueba() {}
 
-    static Rutas generarEn(Path dir) throws Exception {
+    public static Rutas generarEn(Path dir) throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
         KeyPair keyPair = generator.generateKeyPair();

@@ -4,6 +4,7 @@ import com.bridge.facturacion.alumno.Alumno;
 import com.bridge.facturacion.alumno.AlumnoRepository;
 import com.bridge.facturacion.alumno.exception.AlumnoNotFoundException;
 import com.bridge.facturacion.arca.ArcaClient;
+import com.bridge.facturacion.arca.ArcaComunicacionException;
 import com.bridge.facturacion.arca.ComprobanteEmitido;
 import com.bridge.facturacion.arca.ArcaException;
 import com.bridge.facturacion.arca.ResultadoEmision;
@@ -103,6 +104,12 @@ public class FacturaService {
             }
             try {
                 resultados.add(emitir(factura.getId()));
+            } catch (ArcaComunicacionException e) {
+                log.warn("Lote del periodo {} detenido en factura {}: {}. "
+                        + "El resto queda pendiente hasta resolver esta.",
+                        periodo, factura.getId(), e.getMessage());
+                resultados.add(findById(factura.getId()));
+                break;
             } catch (ArcaException e) {
                 resultados.add(findById(factura.getId()));
             }

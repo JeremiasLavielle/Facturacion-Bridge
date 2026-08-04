@@ -5,6 +5,7 @@ import com.bridge.facturacion.alumno.AlumnoRepository;
 import com.bridge.facturacion.alumno.CondicionIva;
 import com.bridge.facturacion.alumno.exception.AlumnoNotFoundException;
 import com.bridge.facturacion.arca.ArcaClient;
+import com.bridge.facturacion.arca.ArcaComunicacionException;
 import com.bridge.facturacion.arca.ArcaException;
 import com.bridge.facturacion.arca.ComprobanteEmitido;
 import com.bridge.facturacion.arca.ResultadoEmision;
@@ -18,6 +19,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -27,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -239,5 +242,68 @@ class FacturaServiceTest {
         // Assert: emision nueva, con el CAE nuevo.
         assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
         assertEquals("75123456789013", factura.getCae());
+    }
+
+    // ---------- emitirPorPeriodo (halt del lote ante timeout fantasma) ----------
+
+    // Factura no expone setId (el id lo pone la base); en los tests lo
+    // seteamos por reflexion para poder simular el lote.
+    private Factura facturaPendienteConId(long id) {
+        Factura factura = Factura.pendiente(alumno, monto, periodo);
+        ReflectionTestUtils.setField(factura, "id", id);
+        return factura;
+    }
+
+    @Test
+    void emitirPorPeriodo_cortaElLote_cuandoFallaLaComunicacion() {
+        // Arrange: tres pendientes. La 1ra sale bien y la 2da da timeout:
+        // no sabemos si ARCA la emitio (posible fantasma).
+        Factura f1 = facturaPendienteConId(1L);
+        Factura f2 = facturaPendienteConId(2L);
+        Factura f3 = facturaPendienteConId(3L);
+        when(facturaRepository.findByPeriodo(periodo)).thenReturn(List.of(f1, f2, f3));
+        when(facturaRepository.findById(1L)).thenReturn(Optional.of(f1));
+        when(facturaRepository.findById(2L)).thenReturn(Optional.of(f2));
+        when(arcaClient.solicitarCae(96, 12345678L, monto, periodo, 5))
+                .thenReturn(new ResultadoEmision(
+                        true, 42, "75123456789012", LocalDate.of(2026, 7, 18), List.of()))
+                .thenThrow(new ArcaComunicacionException(
+                        "Fallo la comunicacion con ARCA: timeout", new RuntimeException()));
+        when(facturaRepository.save(any(Factura.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Act
+        facturaService.emitirPorPeriodo(periodo);
+
+        // Assert: el lote se corto en la 2da; la 3ra NUNCA se intento.
+        // Si se emitiera, el "ultimo emitido" de ARCA pisaria al fantasma
+        // y el reintento de la 2da podria duplicar el comprobante.
+        verify(arcaClient, times(2)).solicitarCae(anyInt(), anyLong(), any(), any(), anyInt());
+        verify(facturaRepository, never()).findById(3L);
+        assertEquals(EstadoFactura.EMITIDA, f1.getEstado());
+        assertEquals(EstadoFactura.ERROR, f2.getEstado());
+        assertEquals(EstadoFactura.PENDIENTE, f3.getEstado());
+    }
+
+    @Test
+    void emitirPorPeriodo_sigueConLaProxima_cuandoArcaRechaza() {
+        // Arrange: dos pendientes. La 1ra recibe un rechazo definitivo de
+        // ARCA (no un timeout): es seguro seguir con la siguiente.
+        Factura f1 = facturaPendienteConId(1L);
+        Factura f2 = facturaPendienteConId(2L);
+        when(facturaRepository.findByPeriodo(periodo)).thenReturn(List.of(f1, f2));
+        when(facturaRepository.findById(1L)).thenReturn(Optional.of(f1));
+        when(facturaRepository.findById(2L)).thenReturn(Optional.of(f2));
+        when(arcaClient.solicitarCae(96, 12345678L, monto, periodo, 5))
+                .thenThrow(new ArcaException("SOAP Fault de ARCA: token invalido"))
+                .thenReturn(new ResultadoEmision(
+                        true, 42, "75123456789012", LocalDate.of(2026, 7, 18), List.of()));
+        when(facturaRepository.save(any(Factura.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Act
+        facturaService.emitirPorPeriodo(periodo);
+
+        // Assert: la 1ra quedo en ERROR y la 2da se emitio igual.
+        assertEquals(EstadoFactura.ERROR, f1.getEstado());
+        assertEquals(EstadoFactura.EMITIDA, f2.getEstado());
     }
 }

@@ -2,7 +2,10 @@ name: bridge-dev
 
 services:
   db:
-    image: postgres:17
+    # -bookworm: variante que conserva los nombres viejos de zonas horarias
+    # (America/Buenos_Aires); la imagen basada en trixie los rechaza y el
+    # backend corriendo en Windows se presenta con el nombre viejo.
+    image: postgres:17-bookworm
     container_name: bridge-postgres
     environment:
       POSTGRES_DB: bridge

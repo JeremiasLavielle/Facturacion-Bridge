@@ -49,8 +49,6 @@ public class ArcaAuthService {
 
         Document response = soapClient.post(properties.urlWsaa(), "", envelope);
 
-        // loginCmsReturn trae un XML (loginTicketResponse) escapado como texto:
-        // hay que extraerlo y parsearlo de nuevo.
         String inner = soapClient.firstText(response, "loginCmsReturn");
         if (inner == null) {
             throw new ArcaException("WSAA no devolvio loginCmsReturn");

@@ -52,7 +52,8 @@ public class SoapClient {
         } catch (ArcaException e) {
             throw e;
         } catch (Exception e) {
-            throw new ArcaException("Fallo la comunicacion con ARCA: " + e.getMessage(), e);
+            // Timeout o corte de red: no sabemos si ARCA proceso la solicitud.
+            throw new ArcaComunicacionException("Fallo la comunicacion con ARCA: " + e.getMessage(), e);
         }
     }
 

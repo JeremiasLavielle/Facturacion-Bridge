@@ -29,9 +29,6 @@ public class AuthService {
         Authentication authentication = authenticationManager.authenticate(
                 UsernamePasswordAuthenticationToken.unauthenticated(dto.email(), dto.password()));
 
-        // Desde Security 6, al autenticar a mano hay que guardar el contexto en la
-        // sesion explicitamente. Sin saveContext(...) el login devuelve 200 pero el
-        // siguiente pedido da 401 porque la sesion nunca se guardo.
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
