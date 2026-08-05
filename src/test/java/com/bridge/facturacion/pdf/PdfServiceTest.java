@@ -35,8 +35,7 @@ class PdfServiceTest {
         alumno.setDni("12345678");
         alumno.setCondicionIva(CondicionIva.CONSUMIDOR_FINAL);
 
-        // Fase 7: el PDF sale del EMISOR DE LA FACTURA.
-        Emisor emisor = EmisoresDePrueba.emisor(1L, "20463447277", 1);
+Emisor emisor = EmisoresDePrueba.emisor(1L, "20463447277", 1);
         factura = Factura.pendiente(alumno, emisor, new BigDecimal("15000.00"), LocalDate.of(2026, 7, 1));
 
         facturaRepository = mock(FacturaRepository.class);
@@ -49,8 +48,7 @@ class PdfServiceTest {
 
         byte[] pdf = pdfService.generar(factura);
 
-        // Firma del formato: todo PDF empieza con "%PDF".
-        assertTrue(pdf.length > 1000, "un comprobante real no puede pesar tan poco");
+assertTrue(pdf.length > 1000, "un comprobante real no puede pesar tan poco");
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
     }
 
@@ -63,7 +61,7 @@ class PdfServiceTest {
 
     @Test
     void buscarEmitida_tiraExcepcion_cuandoLaFacturaEstaPendiente() {
-        // Sin CAE no hay comprobante que imprimir.
+
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
 
         assertThrows(FacturaNoEmitidaException.class, () -> pdfService.buscarEmitida(5L));
@@ -71,9 +69,8 @@ class PdfServiceTest {
 
     @Test
     void buscarEmitida_tiraExcepcion_cuandoEsEmitidaHistoricaSinNumero() {
-        // Emitida antes de V4: tiene CAE pero numero_comprobante NULL.
-        // Antes esto era un NPE criptico al armar el QR; ahora es un 409 claro.
-        factura.marcarEmitida("86270536276914", LocalDate.of(2026, 7, 18), null);
+
+factura.marcarEmitida("86270536276914", LocalDate.of(2026, 7, 18), null);
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
 
         FacturaNoEmitidaException ex = assertThrows(FacturaNoEmitidaException.class,
@@ -88,9 +85,7 @@ class PdfServiceTest {
         assertThrows(FacturaNotFoundException.class, () -> pdfService.buscarEmitida(9L));
     }
 
-    // ---------- notas de credito (Fase 8) ----------
-
-    @Test
+@Test
     void buscarEmitida_permiteFacturasAnuladas_porqueElComprobanteExiste() {
         factura.marcarEmitida("86270536276914", LocalDate.of(2026, 7, 18), 42L);
         factura.marcarAnulada();

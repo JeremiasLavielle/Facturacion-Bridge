@@ -19,9 +19,8 @@ class PdfMuestraTest {
 
     @Test
     void generaUnComprobanteDeMuestra_yLoGuardaEnTarget() throws Exception {
-        // Emisor como los reales (datos de fantasia). Fase 7: el PDF sale
-        // del emisor de la factura, no de una config global.
-        Emisor emisor = new Emisor();
+
+Emisor emisor = new Emisor();
         emisor.setId(1L);
         emisor.setCuit("20463447277");
         emisor.setNombreFantasia("Instituto Bridge");

@@ -21,7 +21,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-// Hereda @SpringBootTest + @AutoConfigureMockMvc y la base Testcontainers.
 class AuthControllerTest extends IntegracionTestBase {
 
     private static final String EMAIL = "operador@test.local";
@@ -30,10 +29,8 @@ class AuthControllerTest extends IntegracionTestBase {
     @Autowired private MockMvc mockMvc;
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PasswordEncoder passwordEncoder;
-    // No se inyecta: Boot 4 migro a Jackson 3 (tools.jackson) y ya no expone
-    // un bean del ObjectMapper viejo (com.fasterxml). Aca solo lo usamos para
-    // parsear JSON del response, asi que alcanza con instanciarlo.
-    private final ObjectMapper objectMapper = new ObjectMapper();
+
+private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void crearOperadorDePrueba() {
@@ -54,10 +51,8 @@ class AuthControllerTest extends IntegracionTestBase {
                         .content(loginJson(EMAIL, PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(EMAIL))
-                // MockMvc no emite la cookie JSESSIONID (eso lo hace el servidor real);
-                // la prueba equivalente es que el contexto quedo guardado en la sesion.
-                // Esto valida ademas el saveContext(...) de AuthService.
-                .andExpect(request().sessionAttribute(
+
+.andExpect(request().sessionAttribute(
                         HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
                         notNullValue()));
     }
@@ -85,9 +80,7 @@ class AuthControllerTest extends IntegracionTestBase {
                 .andExpect(status().isUnauthorized())
                 .andReturn().getResponse().getContentAsString();
 
-        // Si estos cuerpos difieren en algo (salvo el timestamp), hay enumeracion
-        // de usuarios: un atacante podria descubrir que emails existen.
-        assertEquals(sinTimestamp(cuerpoPasswordMal), sinTimestamp(cuerpoEmailInexistente));
+assertEquals(sinTimestamp(cuerpoPasswordMal), sinTimestamp(cuerpoEmailInexistente));
     }
 
     private ObjectNode sinTimestamp(String json) throws Exception {

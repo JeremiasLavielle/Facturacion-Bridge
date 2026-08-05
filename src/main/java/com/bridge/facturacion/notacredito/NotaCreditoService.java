@@ -21,11 +21,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Emision de notas de credito con el MISMO patron que las facturas:
- * estados PENDIENTE/EMITIDA/ERROR y recuperacion del timeout fantasma
- * consultando el ultimo comprobante tipo 13 del emisor.
- */
 @Service
 @RequiredArgsConstructor
 public class NotaCreditoService {
@@ -38,12 +33,7 @@ public class NotaCreditoService {
     private final NotaCreditoMapper notaCreditoMapper;
     private final ArcaClient arcaClient;
 
-    /**
-     * POST /facturas/{id}/nota-credito. Si un intento anterior quedo en
-     * ERROR (timeout), reintenta ESA misma NC en lugar de crear otra:
-     * la restriccion es una sola NC por factura.
-     */
-    public NotaCreditoResponseDTO crearYEmitir(Long facturaId, String motivo) {
+public NotaCreditoResponseDTO crearYEmitir(Long facturaId, String motivo) {
         Factura factura = facturaRepository.findById(facturaId)
                 .orElseThrow(() -> new FacturaNotFoundException(facturaId));
 
@@ -77,10 +67,7 @@ public class NotaCreditoService {
         Emisor emisor = nc.getEmisor();
         Alumno alumno = factura.getAlumno();
 
-        // Timeout fantasma: si el intento anterior fallo por comunicacion,
-        // ARCA pudo haberla emitido igual. El ultimo tipo 13 del emisor
-        // que coincida en DNI, importe y periodo ES esta NC.
-        if (nc.getEstado() == EstadoNotaCredito.ERROR) {
+if (nc.getEstado() == EstadoNotaCredito.ERROR) {
             ComprobanteEmitido ultimo = arcaClient.consultarUltimoEmitido(emisor, ArcaClient.NOTA_CREDITO_C);
             if (ultimo != null && coincideCon(nc, ultimo)) {
                 log.warn("NC {} ya existia en ARCA (cbte {}, CAE {}): se recupera sin reemitir",

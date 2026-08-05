@@ -40,8 +40,7 @@ public class SoapClient {
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             Document doc = parse(response.body());
 
-            // Un SOAP Fault puede venir con status 500: lo detectamos por contenido.
-            String fault = firstText(doc, "faultstring");
+String fault = firstText(doc, "faultstring");
             if (fault != null) {
                 throw new ArcaException("SOAP Fault de ARCA: " + fault);
             }
@@ -52,7 +51,7 @@ public class SoapClient {
         } catch (ArcaException e) {
             throw e;
         } catch (Exception e) {
-            // Timeout o corte de red: no sabemos si ARCA proceso la solicitud.
+
             throw new ArcaComunicacionException("Fallo la comunicacion con ARCA: " + e.getMessage(), e);
         }
     }

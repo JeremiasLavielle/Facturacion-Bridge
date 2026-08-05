@@ -50,9 +50,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleBadCredentials(
             org.springframework.security.authentication.BadCredentialsException ex) {
-        // Mensaje fijo, no ex.getMessage(): la respuesta debe ser identica para
-        // "email inexistente" y "contraseña incorrecta" (evita enumerar usuarios).
-        return build(HttpStatus.UNAUTHORIZED, "Unauthorized", "Credenciales inválidas");
+
+return build(HttpStatus.UNAUTHORIZED, "Unauthorized", "Credenciales inválidas");
     }
 
     @ExceptionHandler(ArcaException.class)

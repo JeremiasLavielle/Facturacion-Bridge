@@ -39,12 +39,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-/**
- * Genera el PDF del comprobante (factura o nota de credito) con la MISMA
- * plantilla: cambian el titulo, el codigo de tipo y, en la NC, la leyenda
- * "Anula a Factura C ...". Los datos de cabecera/pie/QR salen del emisor
- * del comprobante.
- */
 @Service
 public class PdfService {
 
@@ -62,11 +56,7 @@ public class PdfService {
         this.notaCreditoRepository = notaCreditoRepository;
     }
 
-    /**
-     * Todo lo que la plantilla necesita, sin importar si es factura o NC.
-     * {@code leyendaAsociada} solo existe en la NC ("Anula a Factura C ...").
-     */
-    private record Comprobante(
+private record Comprobante(
             Emisor emisor, Alumno alumno, int tipo, String titulo,
             long numero, LocalDateTime fechaEmision, LocalDate periodo,
             BigDecimal monto, String cae, LocalDate vencimientoCae,
@@ -92,8 +82,7 @@ public class PdfService {
                         nc.getEmisor().getPuntoVenta(), factura.getNumeroComprobante()));
     }
 
-    /** Nombre de archivo estilo "factura-0001-00000042.pdf". */
-    public String nombreArchivo(Factura factura) {
+public String nombreArchivo(Factura factura) {
         return "factura-%04d-%08d.pdf".formatted(
                 factura.getEmisor().getPuntoVenta(), factura.getNumeroComprobante());
     }
@@ -107,7 +96,7 @@ public class PdfService {
     public Factura buscarEmitida(Long id) {
         Factura factura = facturaRepository.findById(id)
                 .orElseThrow(() -> new FacturaNotFoundException(id));
-        // ANULADA tambien tiene comprobante: se emitio y luego la anulo su NC.
+
         if (factura.getEstado() != EstadoFactura.EMITIDA
                 && factura.getEstado() != EstadoFactura.ANULADA) {
             throw new FacturaNoEmitidaException(id);
@@ -153,9 +142,7 @@ public class PdfService {
         return out.toByteArray();
     }
 
-    // ---------------- secciones ----------------
-
-    private Table cabecera(Comprobante cbte) {
+private Table cabecera(Comprobante cbte) {
         Emisor emisor = cbte.emisor();
         Table tabla = new Table(UnitValue.createPercentArray(new float[]{44, 12, 44}))
                 .useAllAvailableWidth();
@@ -203,7 +190,7 @@ public class PdfService {
         Cell derecha = celdaConBorde().setPaddingLeft(8)
                 .add(campo("DNI: ", cbte.alumno().getDni()))
                 .add(campo("Período: ", PERIODO.format(cbte.periodo())));
-        // La NC referencia SIEMPRE a su factura original.
+
         if (cbte.leyendaAsociada() != null) {
             derecha.add(new Paragraph(cbte.leyendaAsociada()).setBold().setFontSize(9));
         } else {
@@ -277,9 +264,7 @@ public class PdfService {
         return tabla;
     }
 
-    // ---------------- helpers de formato ----------------
-
-    private Cell celdaConBorde() {
+private Cell celdaConBorde() {
         return new Cell().setBorder(new SolidBorder(0.8f)).setPadding(4);
     }
 

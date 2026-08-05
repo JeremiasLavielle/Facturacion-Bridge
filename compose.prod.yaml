@@ -30,9 +30,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       OPERADOR_EMAIL: ${OPERADOR_EMAIL}
       OPERADOR_PASSWORD: ${OPERADOR_PASSWORD}
-      # CUIT, punto de venta y paths de certificado viven en la tabla
-      # "emisores". El montaje ./arca:/arca cubre los subdirectorios
-      # arca/<cuit>/certificado.crt y arca/<cuit>/clave-privada.key.
       ARCA_CERTS_DIR: /arca
       ARCA_URL_WSAA: ${ARCA_URL_WSAA}
       ARCA_URL_WSFE: ${ARCA_URL_WSFE}

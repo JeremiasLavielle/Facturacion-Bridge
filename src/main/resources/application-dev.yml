@@ -10,8 +10,6 @@ app:
     password: ${OPERADOR_PASSWORD:cambiar123}
 
 arca:
-  # Directorio base de certificados; cada emisor guarda en la tabla
-  # "emisores" sus paths relativos (ej. 20463447277/certificado.crt).
   certs-dir: ${ARCA_CERTS_DIR}
   url-wsaa: https://wsaahomo.afip.gov.ar/ws/services/LoginCms
   url-wsfe: https://wswhomo.afip.gov.ar/wsfev1/service.asmx

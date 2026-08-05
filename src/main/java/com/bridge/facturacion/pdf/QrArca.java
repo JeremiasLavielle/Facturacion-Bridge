@@ -15,7 +15,7 @@ final class QrArca {
     static String buildUrl(LocalDate fechaEmision, long cuitEmisor, int puntoVenta,
                            int tipoComprobante, long numeroComprobante, BigDecimal importe,
                            int tipoDocReceptor, long docReceptor, String cae) {
-        // JSON armado a mano: son 13 campos fijos, no justifica traer un mapper.
+
         String json = """
                 {"ver":1,"fecha":"%s","cuit":%d,"ptoVta":%d,"tipoCmp":%d,"nroCmp":%d,\
                 "importe":%s,"moneda":"PES","ctz":1,"tipoDocRec":%d,"nroDocRec":%d,\

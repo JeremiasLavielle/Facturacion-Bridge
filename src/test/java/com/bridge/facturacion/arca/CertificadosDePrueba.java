@@ -19,8 +19,6 @@ import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.util.Date;
 
-
-// public: tambien lo usa la base de tests de integracion (paquete raiz).
 public final class CertificadosDePrueba {
 
     public record Rutas(String cert, String key) {}
@@ -37,12 +35,7 @@ public final class CertificadosDePrueba {
         return generar(dir.resolve("cert.pem"), dir.resolve("key.pem"));
     }
 
-    /**
-     * Genera certificado y clave con la convencion REAL de la Fase 7:
-     * {@code <base>/<cuit>/certificado.crt} y {@code <base>/<cuit>/clave-privada.key},
-     * como los espera un {@code Emisor} cuyo certs-dir es {@code base}.
-     */
-    public static Rutas generarParaCuit(Path base, String cuit) throws Exception {
+public static Rutas generarParaCuit(Path base, String cuit) throws Exception {
         Path dir = base.resolve(cuit);
         java.nio.file.Files.createDirectories(dir);
         return generar(dir.resolve("certificado.crt"), dir.resolve("clave-privada.key"));

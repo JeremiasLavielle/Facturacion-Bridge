@@ -15,11 +15,6 @@ CREATE TABLE emisores
     CONSTRAINT uq_emisor_cuit_punto_venta UNIQUE (cuit, punto_venta)
 );
 
--- Datos de HOMOLOGACION: ambos emisores comparten el CUIT y el certificado
--- de prueba (20463447277); el segundo usa el punto de venta 2 (hay que
--- habilitarlo en el portal de homologacion de ARCA). Los datos reales de
--- cada titular se cargan en la etapa final, antes del pase a produccion.
--- cert_path y key_path son RELATIVOS a la propiedad arca.certs-dir.
 INSERT INTO emisores (cuit, razon_social, nombre_fantasia, domicilio,
                       condicion_fiscal, ingresos_brutos, inicio_actividades,
                       punto_venta, cert_path, key_path)

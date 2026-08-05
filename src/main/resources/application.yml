@@ -28,6 +28,3 @@ app:
   operador:
     email: ${OPERADOR_EMAIL:}
     password: ${OPERADOR_PASSWORD:}
-
-# Los datos fiscales del emisor (CUIT, punto de venta, certificado,
-# cabecera/pie del PDF) viven en la tabla "emisores" desde la Fase 7.

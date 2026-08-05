@@ -29,7 +29,7 @@ class ArcaAuthServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Un certificado POR CUIT, con la convencion real <cuit>/certificado.crt.
+
         CertificadosDePrueba.generarParaCuit(dir, CUIT_UNO);
         CertificadosDePrueba.generarParaCuit(dir, CUIT_DOS);
         emisorUno = EmisoresDePrueba.emisor(1L, CUIT_UNO, 1);
@@ -39,9 +39,7 @@ class ArcaAuthServiceTest {
                 dir.toString(), "http://test/wsaa", "http://test/wsfe",
                 Ambiente.HOMOLOGACION, 15, 45);
 
-        // spy: objeto REAL (parse y firstText funcionan de verdad),
-        // pero le stubeamos post() para no salir a internet.
-        soapClient = spy(new SoapClient(properties));
+soapClient = spy(new SoapClient(properties));
         authService = new ArcaAuthService(properties, soapClient);
     }
 
@@ -52,7 +50,7 @@ class ArcaAuthServiceTest {
                     <credentials><token>TOKEN-TEST</token><sign>SIGN-TEST</sign></credentials>
                 </loginTicketResponse>
                 """.formatted(expiration);
-        // WSAA devuelve el ticket ESCAPADO adentro de loginCmsReturn.
+
         String envelope = """
                 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                     <soap:Body>
@@ -102,9 +100,7 @@ class ArcaAuthServiceTest {
     void getCredenciales_unTicketPorCuit_noSePisanEntreSi() {
         stubRespuestaWsaa(OffsetDateTime.now().plusHours(12));
 
-        // Cada CUIT hace SU login (2 posts), y despues cada uno usa
-        // SU ticket cacheado (ningun post extra).
-        authService.getCredenciales(emisorUno);
+authService.getCredenciales(emisorUno);
         authService.getCredenciales(emisorDos);
         authService.getCredenciales(emisorUno);
         authService.getCredenciales(emisorDos);

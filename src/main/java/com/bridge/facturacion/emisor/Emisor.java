@@ -5,14 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Un emisor de comprobantes: CUIT + punto de venta + certificado ARCA +
- * datos fiscales que van en la cabecera/pie del PDF.
- *
- * <p>Los paths de certificado y clave son RELATIVOS a {@code arca.certs-dir}
- * (ej. "20463447277/certificado.crt"), asi la misma fila sirve en dev,
- * en el contenedor y en los tests.</p>
- */
 @Entity
 @Table(name = "emisores")
 @Getter

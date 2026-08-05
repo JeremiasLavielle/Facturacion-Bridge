@@ -15,19 +15,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Cliente WSFE. Desde la Fase 7 cada operacion recibe el {@link Emisor}
- * y usa SU CUIT, punto de venta y ticket WSAA (la numeracion la da ARCA
- * por CUIT + punto de venta + tipo de comprobante).
- */
 @Service
 public class ArcaClient {
 
     private static final Logger log = LoggerFactory.getLogger(ArcaClient.class);
     private static final DateTimeFormatter FECHA_ARCA = DateTimeFormatter.ofPattern("yyyyMMdd");
-    /** Factura C. La numeracion de ARCA es por CUIT + PV + tipo. */
+
     public static final int FACTURA_C = 11;
-    /** Nota de Credito C: numeracion PROPIA, independiente de la factura. */
+
     public static final int NOTA_CREDITO_C = 13;
     private static final int CONCEPTO_SERVICIOS = 2;
     static final String NS = "http://ar.gov.afip.dif.FEV1/";
@@ -42,8 +37,7 @@ public class ArcaClient {
         this.soapClient = soapClient;
     }
 
-    /** Ultimo autorizado de FACTURA C (atajo historico). */
-    public long ultimoComprobanteAutorizado(Emisor emisor) {
+public long ultimoComprobanteAutorizado(Emisor emisor) {
         return ultimoComprobanteAutorizado(emisor, FACTURA_C);
     }
 
@@ -65,18 +59,12 @@ public class ArcaClient {
         return Long.parseLong(nro);
     }
 
-    /** Solicita CAE de una FACTURA C (atajo historico, sin comprobante asociado). */
-    public ResultadoEmision solicitarCae(Emisor emisor, int docTipo, long docNro, BigDecimal importe,
+public ResultadoEmision solicitarCae(Emisor emisor, int docTipo, long docNro, BigDecimal importe,
                                          LocalDate periodo, int condicionIvaReceptor) {
         return solicitarCae(emisor, FACTURA_C, null, docTipo, docNro, importe, periodo, condicionIvaReceptor);
     }
 
-    /**
-     * Version parametrizada (Fase 8): {@code cbteTipo} 11 (Factura C) o 13
-     * (Nota de Credito C). Para una NC, {@code asociado} referencia a la
-     * factura original en el bloque {@code CbtesAsoc}.
-     */
-    public ResultadoEmision solicitarCae(Emisor emisor, int cbteTipo, ComprobanteAsociado asociado,
+public ResultadoEmision solicitarCae(Emisor emisor, int cbteTipo, ComprobanteAsociado asociado,
                                          int docTipo, long docNro, BigDecimal importe,
                                          LocalDate periodo, int condicionIvaReceptor) {
 
@@ -133,15 +121,14 @@ public class ArcaClient {
         return parseResultado(doc, numero);
     }
 
-    /** Ultimo emitido de FACTURA C (atajo historico). */
-    public ComprobanteEmitido consultarUltimoEmitido(Emisor emisor) {
+public ComprobanteEmitido consultarUltimoEmitido(Emisor emisor) {
         return consultarUltimoEmitido(emisor, FACTURA_C);
     }
 
     public ComprobanteEmitido consultarUltimoEmitido(Emisor emisor, int cbteTipo) {
         long ultimo = ultimoComprobanteAutorizado(emisor, cbteTipo);
         if (ultimo == 0) {
-            return null; // punto de venta sin comprobantes todavia
+            return null;
         }
         String body = """
                 <ar:FECompConsultar>
@@ -158,7 +145,7 @@ public class ArcaClient {
 
         List<String> errores = codigosYMensajes(doc, "Err");
         if (!errores.isEmpty()) {
-            // 602 = "no existe comprobante": no es una falla, es "no hay nada".
+
             if (errores.stream().anyMatch(e -> e.startsWith("[602]"))) {
                 return null;
             }
@@ -174,13 +161,7 @@ public class ArcaClient {
                 LocalDate.parse(soapClient.firstText(doc, "FchVto"), FECHA_ARCA));
     }
 
-    // ---------- helpers ----------
-
-    /**
-     * Bloque CbtesAsoc para notas de credito. WSFE valida el ORDEN de los
-     * elementos: va inmediatamente despues de CondicionIVAReceptorId.
-     */
-    private String cbtesAsocXml(ComprobanteAsociado asociado) {
+private String cbtesAsocXml(ComprobanteAsociado asociado) {
         if (asociado == null) {
             return "";
         }
@@ -229,7 +210,7 @@ public class ArcaClient {
     }
 
     private ResultadoEmision parseResultado(Document doc, long numero) {
-        // Resultado: A (aprobada) o R (rechazada)
+
         String resultado = soapClient.firstText(doc, "Resultado");
         List<String> observaciones = codigosYMensajes(doc, "Obs");
 

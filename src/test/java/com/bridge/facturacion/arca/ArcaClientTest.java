@@ -93,7 +93,7 @@ class ArcaClientTest {
                 emisor, 96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 1), 5);
 
         assertTrue(resultado.aprobada());
-        assertEquals(42, resultado.numeroComprobante()); // ultimo (41) + 1
+        assertEquals(42, resultado.numeroComprobante());
         assertEquals("75123456789012", resultado.cae());
         assertEquals(LocalDate.of(2026, 7, 18), resultado.vencimientoCae());
     }
@@ -110,18 +110,17 @@ class ArcaClientTest {
 
         arcaClient.solicitarCae(emisor, 96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 15), 5);
 
-        // Capturamos el XML que se le mando a ARCA y verificamos lo critico.
-        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(soapClient).post(anyString(), eq(ACTION_CAE), captor.capture());
         String request = captor.getValue();
 
-        assertTrue(request.contains("<ar:Cuit>20111111112</ar:Cuit>"));          // CUIT del EMISOR
-        assertTrue(request.contains("<ar:PtoVta>1</ar:PtoVta>"));                // PV del EMISOR
-        assertTrue(request.contains("<ar:CbteTipo>11</ar:CbteTipo>"));           // Factura C
-        assertTrue(request.contains("<ar:CbteDesde>42</ar:CbteDesde>"));         // numeracion de ARCA + 1
-        assertTrue(request.contains("<ar:ImpTotal>15000.00</ar:ImpTotal>"));     // 2 decimales
-        assertTrue(request.contains("<ar:ImpIVA>0</ar:ImpIVA>"));                // C: sin IVA discriminado
-        assertTrue(request.contains("<ar:FchServDesde>20260701</ar:FchServDesde>")); // mes completo
+        assertTrue(request.contains("<ar:Cuit>20111111112</ar:Cuit>"));
+        assertTrue(request.contains("<ar:PtoVta>1</ar:PtoVta>"));
+        assertTrue(request.contains("<ar:CbteTipo>11</ar:CbteTipo>"));
+        assertTrue(request.contains("<ar:CbteDesde>42</ar:CbteDesde>"));
+        assertTrue(request.contains("<ar:ImpTotal>15000.00</ar:ImpTotal>"));
+        assertTrue(request.contains("<ar:ImpIVA>0</ar:ImpIVA>"));
+        assertTrue(request.contains("<ar:FchServDesde>20260701</ar:FchServDesde>"));
         assertTrue(request.contains("<ar:FchServHasta>20260731</ar:FchServHasta>"));
         assertTrue(request.contains("<ar:CondicionIVAReceptorId>5</ar:CondicionIVAReceptorId>"));
     }
@@ -193,17 +192,13 @@ class ArcaClientTest {
         assertEquals(LocalDate.of(2026, 7, 18), ultimo.vencimientoCae());
     }
 
-    // ---------- notas de credito (Fase 8, tipo 13) ----------
-
-    @Test
+@Test
     void ultimoComprobanteAutorizado_tipo13_consultaLaNumeracionPropia() {
         stubUltimoAutorizado(7);
 
         arcaClient.ultimoComprobanteAutorizado(emisor, ArcaClient.NOTA_CREDITO_C);
 
-        // El request pide el ultimo del TIPO 13: la NC no comparte
-        // numeracion con la factura (ARCA numera por CUIT + PV + tipo).
-        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(soapClient).post(anyString(), eq(ACTION_ULTIMO), captor.capture());
         assertTrue(captor.getValue().contains("<ar:CbteTipo>13</ar:CbteTipo>"));
     }
@@ -225,18 +220,18 @@ class ArcaClientTest {
                 96, 12345678L, new BigDecimal("15000"), LocalDate.of(2026, 7, 1), 5);
 
         assertTrue(resultado.aprobada());
-        assertEquals(8, resultado.numeroComprobante()); // numeracion PROPIA: ultimo 13 (7) + 1
+        assertEquals(8, resultado.numeroComprobante());
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(soapClient).post(anyString(), eq(ACTION_CAE), captor.capture());
         String request = captor.getValue();
 
-        assertTrue(request.contains("<ar:CbteTipo>13</ar:CbteTipo>"));           // NC de tipo C
-        assertTrue(request.contains("<ar:CbtesAsoc>"));                          // referencia obligatoria
-        assertTrue(request.contains("<ar:Tipo>11</ar:Tipo>"));                   // ...a la Factura C
-        assertTrue(request.contains("<ar:Nro>42</ar:Nro>"));                     // ...numero original
+        assertTrue(request.contains("<ar:CbteTipo>13</ar:CbteTipo>"));
+        assertTrue(request.contains("<ar:CbtesAsoc>"));
+        assertTrue(request.contains("<ar:Tipo>11</ar:Tipo>"));
+        assertTrue(request.contains("<ar:Nro>42</ar:Nro>"));
         assertTrue(request.contains("<ar:Cuit>20111111112</ar:Cuit>"));
-        assertTrue(request.contains("<ar:CbteFch>20260704</ar:CbteFch>"));       // fecha de la factura
+        assertTrue(request.contains("<ar:CbteFch>20260704</ar:CbteFch>"));
     }
 
     @Test
@@ -259,7 +254,7 @@ class ArcaClientTest {
 
     @Test
     void consultarUltimoEmitido_devuelveNull_cuandoNoExisteComprobante() {
-        // 602 = "no existe comprobante": no es una falla, es "no hay nada".
+
         stubUltimoAutorizado(42);
         String xml = envolver("""
                 <FECompConsultarResponse xmlns="http://ar.gov.afip.dif.FEV1/">

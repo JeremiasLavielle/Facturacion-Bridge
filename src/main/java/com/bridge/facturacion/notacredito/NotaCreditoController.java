@@ -17,8 +17,7 @@ public class NotaCreditoController {
     private final NotaCreditoService notaCreditoService;
     private final PdfService pdfService;
 
-    /** Crea y emite la NC que anula la factura (body: motivo). */
-    @PostMapping("/facturas/{facturaId}/nota-credito")
+@PostMapping("/facturas/{facturaId}/nota-credito")
     public ResponseEntity<NotaCreditoResponseDTO> crearYEmitir(
             @PathVariable Long facturaId,
             @Valid @RequestBody NotaCreditoRequestDTO request) {
@@ -26,8 +25,7 @@ public class NotaCreditoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(nc);
     }
 
-    /** La NC de una factura (para el link desde una factura ANULADA). */
-    @GetMapping("/facturas/{facturaId}/nota-credito")
+@GetMapping("/facturas/{facturaId}/nota-credito")
     public ResponseEntity<NotaCreditoResponseDTO> deFactura(@PathVariable Long facturaId) {
         return ResponseEntity.ok(notaCreditoService.findByFacturaId(facturaId));
     }

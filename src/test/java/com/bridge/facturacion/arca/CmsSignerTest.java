@@ -25,15 +25,12 @@ class CmsSignerTest {
 
         String base64 = CmsSigner.signBase64(tra, rutas.cert(), rutas.key());
 
-        // 1) Es Base64 valido y es una estructura CMS valida.
-        CMSSignedData cms = new CMSSignedData(Base64.getDecoder().decode(base64));
+CMSSignedData cms = new CMSSignedData(Base64.getDecoder().decode(base64));
 
-        // 2) El contenido firmado es exactamente el TRA (firma "attached").
-        byte[] contenido = (byte[]) cms.getSignedContent().getContent();
+byte[] contenido = (byte[]) cms.getSignedContent().getContent();
         assertEquals(tra, new String(contenido, StandardCharsets.UTF_8));
 
-        // 3) La firma verifica contra el certificado incluido en el sobre.
-        SignerInformation firmante = cms.getSignerInfos().getSigners().iterator().next();
+SignerInformation firmante = cms.getSignerInfos().getSigners().iterator().next();
         X509CertificateHolder cert = (X509CertificateHolder) cms.getCertificates()
                 .getMatches(firmante.getSID()).iterator().next();
         assertTrue(firmante.verify(

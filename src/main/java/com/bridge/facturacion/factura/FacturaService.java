@@ -53,9 +53,7 @@ public class FacturaService {
                 .orElseThrow(() -> new EmisorNotFoundException(request.getEmisorId()));
         LocalDate periodo = request.getPeriodo();
 
-        // La restriccion es GLOBAL (sin emisor): un alumno paga una sola
-        // cuota por mes, la facture quien la facture.
-        if (facturaRepository.existsByAlumnoAndPeriodo(alumno, periodo)) {
+if (facturaRepository.existsByAlumnoAndPeriodo(alumno, periodo)) {
             throw new FacturaAlreadyExistsException(alumno, periodo);
         }
 
@@ -68,9 +66,7 @@ public class FacturaService {
         Factura factura = facturaRepository.findById(id)
                 .orElseThrow(() -> new FacturaNotFoundException(id));
 
-        // EMITIDA o ANULADA: el comprobante ya existe en ARCA; reemitirlo
-        // seria duplicar un comprobante fiscal.
-        if (factura.getEstado() == EstadoFactura.EMITIDA
+if (factura.getEstado() == EstadoFactura.EMITIDA
                 || factura.getEstado() == EstadoFactura.ANULADA) {
             throw new FacturaYaEmitidaException(id, factura.getCae());
         }
@@ -112,13 +108,7 @@ public class FacturaService {
         return facturaMapper.toResponse(facturaRepository.save(factura));
     }
 
-    /**
-     * Emision batch del periodo, agrupada por emisor. Un corte de
-     * comunicacion (posible timeout fantasma) detiene SOLO el lote del
-     * emisor afectado: los otros emisores tienen numeracion propia en
-     * ARCA, asi que pueden seguir sin riesgo de duplicados.
-     */
-    public List<FacturaResponseDTO> emitirPorPeriodo(LocalDate periodo) {
+public List<FacturaResponseDTO> emitirPorPeriodo(LocalDate periodo) {
         Map<Long, List<Factura>> lotesPorEmisor = new LinkedHashMap<>();
         for (Factura factura : facturaRepository.findByPeriodo(periodo)) {
             if (factura.getEstado() == EstadoFactura.EMITIDA
@@ -139,7 +129,7 @@ public class FacturaService {
                             + "El resto de ESTE emisor queda pendiente hasta resolver esta.",
                             periodo, factura.getEmisor().getCuit(), factura.getId(), e.getMessage());
                     resultados.add(findById(factura.getId()));
-                    break; // corta solo el lote de este emisor
+                    break;
                 } catch (ArcaException e) {
                     resultados.add(findById(factura.getId()));
                 }

@@ -32,9 +32,7 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
     private static final String CAE = "75123456789012";
     private static final String CAE_NC = "75123456789099";
 
-    // ---------- ARCA falsa: servidor HTTP local que habla SOAP ----------
-
-    private static final HttpServer ARCA_FALSA;
+private static final HttpServer ARCA_FALSA;
 
     static {
         try {
@@ -42,9 +40,8 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
             ARCA_FALSA.createContext("/wsaa", exchange -> responder(exchange, respuestaWsaa()));
             ARCA_FALSA.createContext("/wsfe", exchange -> {
                 String action = exchange.getRequestHeaders().getFirst("Soapaction");
-                // La numeracion es por TIPO: factura C (11) va por 41,
-                // nota de credito C (13) por 7 (numeracion propia).
-                String cuerpo = new String(exchange.getRequestBody().readAllBytes(),
+
+String cuerpo = new String(exchange.getRequestBody().readAllBytes(),
                         StandardCharsets.UTF_8);
                 boolean esNotaCredito = cuerpo.contains("<ar:CbteTipo>13</ar:CbteTipo>");
                 if (action != null && action.contains("FECompUltimoAutorizado")) {
@@ -121,21 +118,19 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
         int puerto = ARCA_FALSA.getAddress().getPort();
         registry.add("arca.url-wsaa", () -> "http://localhost:" + puerto + "/wsaa");
         registry.add("arca.url-wsfe", () -> "http://localhost:" + puerto + "/wsfe");
-        // Operador conocido, sin depender de variables de entorno de la maquina.
+
         registry.add("app.operador.email", () -> OPERADOR_EMAIL);
         registry.add("app.operador.password", () -> OPERADOR_PASSWORD);
     }
 
-    // ---------- el flujo ----------
-
-    @Autowired
+@Autowired
     private MockMvc mockMvc;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void flujoCompleto_delLoginALaDescargaDelPdf() throws Exception {
-        // 1. Login con el operador creado por UsuarioBootstrap al arrancar.
+
         MvcResult login = mockMvc.perform(post("/auth/login").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -146,15 +141,13 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
         MockHttpSession sesion = (MockHttpSession) login.getRequest().getSession(false);
         assertNotNull(sesion, "el login debe dejar una sesion creada");
 
-        // 2. Los DOS emisores de la migracion V6 estan disponibles.
-        mockMvc.perform(get("/emisores").session(sesion))
+mockMvc.perform(get("/emisores").session(sesion))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].puntoVenta").value(1))
                 .andExpect(jsonPath("$[1].puntoVenta").value(2));
 
-        // 3. Alta de alumnos (uno para cada emisor).
-        MvcResult alumno = mockMvc.perform(post("/alumnos").session(sesion).with(csrf())
+MvcResult alumno = mockMvc.perform(post("/alumnos").session(sesion).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"nombre":"Alumna E2E","dni":"30123456","condicionIva":"CONSUMIDOR_FINAL"}"""))
@@ -170,8 +163,7 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
                 .andReturn();
         long alumno2Id = idDe(alumno2);
 
-        // 4. Alta de facturas del periodo julio 2026: una CON CADA EMISOR.
-        MvcResult factura = mockMvc.perform(post("/facturas").session(sesion).with(csrf())
+MvcResult factura = mockMvc.perform(post("/facturas").session(sesion).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"alumnoId":%d,"emisorId":1,"monto":15000.00,"periodo":"2026-07-01"}"""
@@ -192,20 +184,18 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
                 .andReturn();
         long factura2Id = idDe(factura2);
 
-        // 5. Emision: dispara WSAA (firma CMS real) + WSFE contra la ARCA falsa.
-        mockMvc.perform(post("/facturas/{id}/emitir", facturaId).session(sesion).with(csrf()))
+mockMvc.perform(post("/facturas/{id}/emitir", facturaId).session(sesion).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("EMITIDA"))
                 .andExpect(jsonPath("$.cae").value(CAE))
-                .andExpect(jsonPath("$.numeroComprobante").value(42)); // ultimo (41) + 1
+                .andExpect(jsonPath("$.numeroComprobante").value(42));
 
         mockMvc.perform(post("/facturas/{id}/emitir", factura2Id).session(sesion).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("EMITIDA"))
                 .andExpect(jsonPath("$.emisor.puntoVenta").value(2));
 
-        // 6. Descarga de los PDFs (cada uno con los datos de su emisor).
-        byte[] pdf = mockMvc.perform(get("/facturas/{id}/pdf", facturaId).session(sesion))
+byte[] pdf = mockMvc.perform(get("/facturas/{id}/pdf", facturaId).session(sesion))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition",
@@ -215,16 +205,13 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
         assertTrue(pdf.length > 1000, "el PDF deberia tener contenido real");
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
 
-        // El PDF del emisor 2 sale con SU punto de venta en el nombre.
-        mockMvc.perform(get("/facturas/{id}/pdf", factura2Id).session(sesion))
+mockMvc.perform(get("/facturas/{id}/pdf", factura2Id).session(sesion))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition",
                         "attachment; filename=\"factura-0002-00000042.pdf\""));
 
-        // 7. Nota de credito (Fase 8): anula la factura del emisor 1.
-        //    Numeracion PROPIA del tipo 13: ultimo (7) + 1 = 8.
-        MvcResult nc = mockMvc.perform(post("/facturas/{id}/nota-credito", facturaId)
+MvcResult nc = mockMvc.perform(post("/facturas/{id}/nota-credito", facturaId)
                         .session(sesion).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -237,8 +224,7 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
                 .andReturn();
         long ncId = idDe(nc);
 
-        // 8. La factura quedo ANULADA (conserva su CAE) y linkea a su NC.
-        mockMvc.perform(get("/facturas/{id}", facturaId).session(sesion))
+mockMvc.perform(get("/facturas/{id}", facturaId).session(sesion))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("ANULADA"))
                 .andExpect(jsonPath("$.cae").value(CAE));
@@ -246,16 +232,14 @@ class FlujoFacturacionE2ETest extends IntegracionTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value((int) ncId));
 
-        // 9. Una segunda NC sobre la misma factura se rechaza (409).
-        mockMvc.perform(post("/facturas/{id}/nota-credito", facturaId)
+mockMvc.perform(post("/facturas/{id}/nota-credito", facturaId)
                         .session(sesion).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"motivo":"segundo intento"}"""))
                 .andExpect(status().isConflict());
 
-        // 10. PDF de la NC.
-        byte[] pdfNc = mockMvc.perform(get("/notas-credito/{id}/pdf", ncId).session(sesion))
+byte[] pdfNc = mockMvc.perform(get("/notas-credito/{id}/pdf", ncId).session(sesion))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition",

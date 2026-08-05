@@ -10,11 +10,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * Nota de Credito C (tipo 13): la UNICA correccion valida de una factura
- * con CAE. Anulacion TOTAL (mismo monto), una sola por factura, del mismo
- * emisor que la factura original. Tiene numeracion propia en ARCA.
- */
 @Entity
 @Table(name = "notas_credito")
 @Getter
@@ -49,7 +44,6 @@ public class NotaCredito {
     private Long numeroComprobante;
     private String mensajeError;
 
-    /** El emisor y el monto salen SIEMPRE de la factura original. */
     public static NotaCredito pendiente(Factura factura, String motivo) {
         NotaCredito nc = new NotaCredito();
         nc.factura = factura;

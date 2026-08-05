@@ -41,8 +41,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class FacturaServiceTest {
 
-    // Los "dobles": dependencias falsas que controlamos nosotros.
-    @Mock
+@Mock
     private AlumnoRepository alumnoRepository;
     @Mock
     private FacturaRepository facturaRepository;
@@ -53,12 +52,10 @@ class FacturaServiceTest {
     @Mock
     private ArcaClient arcaClient;
 
-    // El Service REAL, con los dobles inyectados por su constructor.
-    @InjectMocks
+@InjectMocks
     private FacturaService facturaService;
 
-    // Datos de prueba reutilizables, armados antes de cada test.
-    private Alumno alumno;
+private Alumno alumno;
     private Emisor emisor;
     private FacturaRequestDTO request;
     private final LocalDate periodo = LocalDate.of(2026, 5, 1);
@@ -81,21 +78,16 @@ class FacturaServiceTest {
         request.setPeriodo(periodo);
     }
 
-    // ---------- create ----------
-
-    @Test
+@Test
     void create_guardaEnEstadoPendiente_conElEmisorElegido() {
-        // Arrange: el alumno y el emisor existen, y no hay factura previa.
+
         when(alumnoRepository.findById(1L)).thenReturn(Optional.of(alumno));
         when(emisorRepository.findById(1L)).thenReturn(Optional.of(emisor));
         when(facturaRepository.existsByAlumnoAndPeriodo(alumno, periodo)).thenReturn(false);
 
-        // Act
-        facturaService.create(request);
+facturaService.create(request);
 
-        // Assert: atrapamos la Factura que el Service mandó a guardar
-        // y revisamos que la construyó como esperábamos.
-        ArgumentCaptor<Factura> captor = ArgumentCaptor.forClass(Factura.class);
+ArgumentCaptor<Factura> captor = ArgumentCaptor.forClass(Factura.class);
         verify(facturaRepository).save(captor.capture());
         Factura guardada = captor.getValue();
 
@@ -108,25 +100,22 @@ class FacturaServiceTest {
 
     @Test
     void create_tiraExcepcion_cuandoElAlumnoNoExiste() {
-        // Arrange: el repo no encuentra al alumno.
+
         when(alumnoRepository.findById(1L)).thenReturn(Optional.empty());
 
-        // Act + Assert: debe cortar con la excepción...
-        assertThrows(AlumnoNotFoundException.class,
+assertThrows(AlumnoNotFoundException.class,
                 () -> facturaService.create(request));
 
-        // ...y nunca haber intentado guardar nada.
-        verify(facturaRepository, never()).save(any());
+verify(facturaRepository, never()).save(any());
     }
 
     @Test
     void create_tiraExcepcion_cuandoElEmisorNoExiste() {
-        // Arrange: el alumno existe pero el emisor elegido no.
+
         when(alumnoRepository.findById(1L)).thenReturn(Optional.of(alumno));
         when(emisorRepository.findById(1L)).thenReturn(Optional.empty());
 
-        // Act + Assert
-        assertThrows(EmisorNotFoundException.class,
+assertThrows(EmisorNotFoundException.class,
                 () -> facturaService.create(request));
 
         verify(facturaRepository, never()).save(any());
@@ -134,39 +123,31 @@ class FacturaServiceTest {
 
     @Test
     void create_tiraExcepcion_cuandoYaExisteFacturaDelPeriodo() {
-        // Arrange: alumno y emisor existen, pero ya hay una factura de ese
-        // período (restricción GLOBAL: sin importar qué emisor la hizo).
-        when(alumnoRepository.findById(1L)).thenReturn(Optional.of(alumno));
+
+when(alumnoRepository.findById(1L)).thenReturn(Optional.of(alumno));
         when(emisorRepository.findById(1L)).thenReturn(Optional.of(emisor));
         when(facturaRepository.existsByAlumnoAndPeriodo(alumno, periodo)).thenReturn(true);
 
-        // Act + Assert
-        assertThrows(FacturaAlreadyExistsException.class,
+assertThrows(FacturaAlreadyExistsException.class,
                 () -> facturaService.create(request));
 
         verify(facturaRepository, never()).save(any());
     }
 
-    // ---------- emitir (Fase 4: integración ARCA) ----------
-
-    @Test
+@Test
     void emitir_marcaEmitidaConCae_cuandoArcaAprueba() {
-        // Arrange: factura PENDIENTE en el repo, y ARCA aprueba. La emisión
-        // usa el EMISOR DE LA FACTURA (no una config global).
-        Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
+
+Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
-        // Verificamos de paso el mapeo de dominio: DNI -> docTipo 96,
-        // CONSUMIDOR_FINAL -> código ARCA 5.
-        when(arcaClient.solicitarCae(emisor, 96, 12345678L, monto, periodo, 5))
+
+when(arcaClient.solicitarCae(emisor, 96, 12345678L, monto, periodo, 5))
                 .thenReturn(new ResultadoEmision(
                         true, 42, "75123456789012", LocalDate.of(2026, 7, 18), List.of()));
         when(facturaRepository.save(factura)).thenReturn(factura);
 
-        // Act
-        facturaService.emitir(5L);
+facturaService.emitir(5L);
 
-        // Assert: la transición de estado dejó todo consistente.
-        assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
+assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
         assertEquals("75123456789012", factura.getCae());
         assertEquals(LocalDate.of(2026, 7, 18), factura.getVencimientoCae());
         assertEquals(42L, factura.getNumeroComprobante());
@@ -177,75 +158,61 @@ class FacturaServiceTest {
 
     @Test
     void emitir_marcaError_cuandoArcaRechaza() {
-        // Arrange: ARCA responde, pero rechaza el comprobante (rechazo de
-        // negocio: NO es una excepción, queda registrado en la factura).
-        Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
+
+Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
         when(arcaClient.solicitarCae(emisor, 96, 12345678L, monto, periodo, 5))
                 .thenReturn(new ResultadoEmision(
                         false, 42, null, null, List.of("[10048] Campo DocNro invalido")));
         when(facturaRepository.save(factura)).thenReturn(factura);
 
-        // Act
-        facturaService.emitir(5L);
+facturaService.emitir(5L);
 
-        // Assert
-        assertEquals(EstadoFactura.ERROR, factura.getEstado());
+assertEquals(EstadoFactura.ERROR, factura.getEstado());
         assertNull(factura.getCae());
         assertTrue(factura.getMensajeError().contains("10048"));
     }
 
     @Test
     void emitir_marcaErrorYPropaga_cuandoFallaLaComunicacion() {
-        // Arrange: no se pudo hablar con ARCA (timeout, red, etc.).
+
         Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
         when(arcaClient.solicitarCae(emisor, 96, 12345678L, monto, periodo, 5))
                 .thenThrow(new ArcaException("Fallo la comunicacion con ARCA: timeout"));
 
-        // Act + Assert: propaga (el handler global la traduce a 502)...
-        assertThrows(ArcaException.class, () -> facturaService.emitir(5L));
+assertThrows(ArcaException.class, () -> facturaService.emitir(5L));
 
-        // ...pero ANTES dejó la factura en ERROR y la guardó (reintentable).
-        assertEquals(EstadoFactura.ERROR, factura.getEstado());
+assertEquals(EstadoFactura.ERROR, factura.getEstado());
         assertTrue(factura.getMensajeError().contains("timeout"));
         verify(facturaRepository).save(factura);
     }
 
     @Test
     void emitir_tiraExcepcion_cuandoYaTieneCae() {
-        // Arrange: la factura ya fue emitida; reemitirla duplicaría un
-        // comprobante fiscal.
-        Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
+
+Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
         factura.marcarEmitida("75123456789012", LocalDate.of(2026, 7, 18), 42L);
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
 
-        // Act + Assert: corta antes de tocar ARCA.
-        assertThrows(FacturaYaEmitidaException.class, () -> facturaService.emitir(5L));
+assertThrows(FacturaYaEmitidaException.class, () -> facturaService.emitir(5L));
         verify(arcaClient, never()).solicitarCae(any(), anyInt(), anyLong(), any(), any(), anyInt());
         verify(facturaRepository, never()).save(any());
     }
 
-    // ---------- reintento y timeout fantasma (FECompConsultar) ----------
-
-    @Test
+@Test
     void emitir_recuperaElCae_cuandoElReintentoEncuentraElFantasma() {
-        // Arrange: la factura quedo en ERROR por un corte de comunicacion,
-        // pero ARCA SI la habia emitido. El ultimo comprobante DEL EMISOR
-        // coincide en DNI, importe y periodo -> es el fantasma.
-        Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
+
+Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
         factura.marcarError("Fallo la comunicacion con ARCA: timeout");
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
         when(arcaClient.consultarUltimoEmitido(emisor)).thenReturn(new ComprobanteEmitido(
                 42, 12345678L, monto, periodo, "75123456789012", LocalDate.of(2026, 7, 18)));
         when(facturaRepository.save(factura)).thenReturn(factura);
 
-        // Act
-        facturaService.emitir(5L);
+facturaService.emitir(5L);
 
-        // Assert: adopto el CAE existente SIN emitir de nuevo (eso seria
-        // duplicar un comprobante fiscal).
-        assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
+assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
         assertEquals("75123456789012", factura.getCae());
         assertEquals(42L, factura.getNumeroComprobante());
         verify(arcaClient, never()).solicitarCae(any(), anyInt(), anyLong(), any(), any(), anyInt());
@@ -253,9 +220,8 @@ class FacturaServiceTest {
 
     @Test
     void emitir_emiteNormalmente_cuandoElUltimoComprobanteNoEsElFantasma() {
-        // Arrange: reintento de una ERROR, pero el ultimo comprobante de ARCA
-        // es de OTRA operacion (importe distinto) -> hay que emitir de verdad.
-        Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
+
+Factura factura = Factura.pendiente(alumno, emisor, monto, periodo);
         factura.marcarError("rechazo previo");
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
         when(arcaClient.consultarUltimoEmitido(emisor)).thenReturn(new ComprobanteEmitido(
@@ -265,19 +231,13 @@ class FacturaServiceTest {
                         true, 43, "75123456789013", LocalDate.of(2026, 7, 18), List.of()));
         when(facturaRepository.save(factura)).thenReturn(factura);
 
-        // Act
-        facturaService.emitir(5L);
+facturaService.emitir(5L);
 
-        // Assert: emision nueva, con el CAE nuevo.
-        assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
+assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
         assertEquals("75123456789013", factura.getCae());
     }
 
-    // ---------- emitirPorPeriodo (halt del lote ante timeout fantasma) ----------
-
-    // Factura no expone setId (el id lo pone la base); en los tests lo
-    // seteamos por reflexion para poder simular el lote.
-    private Factura facturaPendienteConId(long id, Emisor emisorDeLaFactura) {
+private Factura facturaPendienteConId(long id, Emisor emisorDeLaFactura) {
         Factura factura = Factura.pendiente(alumno, emisorDeLaFactura, monto, periodo);
         ReflectionTestUtils.setField(factura, "id", id);
         return factura;
@@ -285,9 +245,8 @@ class FacturaServiceTest {
 
     @Test
     void emitirPorPeriodo_cortaElLote_cuandoFallaLaComunicacion() {
-        // Arrange: tres pendientes DEL MISMO EMISOR. La 1ra sale bien y la
-        // 2da da timeout: no sabemos si ARCA la emitio (posible fantasma).
-        Factura f1 = facturaPendienteConId(1L, emisor);
+
+Factura f1 = facturaPendienteConId(1L, emisor);
         Factura f2 = facturaPendienteConId(2L, emisor);
         Factura f3 = facturaPendienteConId(3L, emisor);
         when(facturaRepository.findByPeriodo(periodo)).thenReturn(List.of(f1, f2, f3));
@@ -300,13 +259,9 @@ class FacturaServiceTest {
                         "Fallo la comunicacion con ARCA: timeout", new RuntimeException()));
         when(facturaRepository.save(any(Factura.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Act
-        facturaService.emitirPorPeriodo(periodo);
+facturaService.emitirPorPeriodo(periodo);
 
-        // Assert: el lote se corto en la 2da; la 3ra NUNCA se intento.
-        // Si se emitiera, el "ultimo emitido" de ARCA pisaria al fantasma
-        // y el reintento de la 2da podria duplicar el comprobante.
-        verify(arcaClient, times(2)).solicitarCae(any(), anyInt(), anyLong(), any(), any(), anyInt());
+verify(arcaClient, times(2)).solicitarCae(any(), anyInt(), anyLong(), any(), any(), anyInt());
         verify(facturaRepository, never()).findById(3L);
         assertEquals(EstadoFactura.EMITIDA, f1.getEstado());
         assertEquals(EstadoFactura.ERROR, f2.getEstado());
@@ -315,9 +270,8 @@ class FacturaServiceTest {
 
     @Test
     void emitirPorPeriodo_sigueConLaProxima_cuandoArcaRechaza() {
-        // Arrange: dos pendientes. La 1ra recibe un rechazo definitivo de
-        // ARCA (no un timeout): es seguro seguir con la siguiente.
-        Factura f1 = facturaPendienteConId(1L, emisor);
+
+Factura f1 = facturaPendienteConId(1L, emisor);
         Factura f2 = facturaPendienteConId(2L, emisor);
         when(facturaRepository.findByPeriodo(periodo)).thenReturn(List.of(f1, f2));
         when(facturaRepository.findById(1L)).thenReturn(Optional.of(f1));
@@ -328,23 +282,19 @@ class FacturaServiceTest {
                         true, 42, "75123456789012", LocalDate.of(2026, 7, 18), List.of()));
         when(facturaRepository.save(any(Factura.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Act
-        facturaService.emitirPorPeriodo(periodo);
+facturaService.emitirPorPeriodo(periodo);
 
-        // Assert: la 1ra quedo en ERROR y la 2da se emitio igual.
-        assertEquals(EstadoFactura.ERROR, f1.getEstado());
+assertEquals(EstadoFactura.ERROR, f1.getEstado());
         assertEquals(EstadoFactura.EMITIDA, f2.getEstado());
     }
 
     @Test
     void emitirPorPeriodo_unCorteEnUnEmisor_noFrenaElLoteDelOtro() {
-        // Arrange (Fase 7): el batch agrupa por emisor. Un timeout en el
-        // lote del emisor UNO corta SOLO ese lote: el emisor DOS tiene
-        // numeracion propia en ARCA, puede seguir sin riesgo de duplicados.
-        Emisor emisorDos = EmisoresDePrueba.emisor(2L, "20222222223", 1);
-        Factura f1 = facturaPendienteConId(1L, emisor);      // emisor UNO -> timeout
-        Factura f2 = facturaPendienteConId(2L, emisor);      // emisor UNO -> queda pendiente
-        Factura f3 = facturaPendienteConId(3L, emisorDos);   // emisor DOS -> se emite igual
+
+Emisor emisorDos = EmisoresDePrueba.emisor(2L, "20222222223", 1);
+        Factura f1 = facturaPendienteConId(1L, emisor);
+        Factura f2 = facturaPendienteConId(2L, emisor);
+        Factura f3 = facturaPendienteConId(3L, emisorDos);
         when(facturaRepository.findByPeriodo(periodo)).thenReturn(List.of(f1, f2, f3));
         when(facturaRepository.findById(1L)).thenReturn(Optional.of(f1));
         when(facturaRepository.findById(3L)).thenReturn(Optional.of(f3));
@@ -356,11 +306,9 @@ class FacturaServiceTest {
                         true, 42, "75123456789012", LocalDate.of(2026, 7, 18), List.of()));
         when(facturaRepository.save(any(Factura.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Act
-        facturaService.emitirPorPeriodo(periodo);
+facturaService.emitirPorPeriodo(periodo);
 
-        // Assert: f1 en ERROR, f2 ni se intento (mismo lote), f3 EMITIDA.
-        assertEquals(EstadoFactura.ERROR, f1.getEstado());
+assertEquals(EstadoFactura.ERROR, f1.getEstado());
         assertEquals(EstadoFactura.PENDIENTE, f2.getEstado());
         assertEquals(EstadoFactura.EMITIDA, f3.getEstado());
         verify(facturaRepository, never()).findById(2L);

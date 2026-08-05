@@ -68,14 +68,12 @@ class NotaCreditoServiceTest {
 
         emisor = EmisoresDePrueba.emisor(1L, "20111111112", 1);
 
-        // Factura EMITIDA (la unica anulable), comprobante 42.
-        factura = Factura.pendiente(alumno, emisor, monto, periodo);
+factura = Factura.pendiente(alumno, emisor, monto, periodo);
         ReflectionTestUtils.setField(factura, "id", 5L);
         factura.marcarEmitida("75123456789012", LocalDate.of(2026, 7, 18), 42L);
     }
 
-    /** El save del repo asigna id 10 (como haria la base) y findById lo devuelve. */
-    private void stubPersistenciaDeNc() {
+private void stubPersistenciaDeNc() {
         AtomicReference<NotaCredito> guardada = new AtomicReference<>();
         when(notaCreditoRepository.save(any(NotaCredito.class))).thenAnswer(inv -> {
             NotaCredito nc = inv.getArgument(0);
@@ -100,16 +98,14 @@ class NotaCreditoServiceTest {
 
         notaCreditoService.crearYEmitir(5L, "error en el monto");
 
-        // La NC tomo emisor y monto DE LA FACTURA, y referencia al cbte 42.
-        ArgumentCaptor<ComprobanteAsociado> asociado = ArgumentCaptor.forClass(ComprobanteAsociado.class);
+ArgumentCaptor<ComprobanteAsociado> asociado = ArgumentCaptor.forClass(ComprobanteAsociado.class);
         verify(arcaClient).solicitarCae(eq(emisor), eq(ArcaClient.NOTA_CREDITO_C), asociado.capture(),
                 eq(96), eq(12345678L), eq(monto), eq(periodo), eq(5));
         assertEquals(ArcaClient.FACTURA_C, asociado.getValue().tipo());
         assertEquals(42L, asociado.getValue().numero());
         assertEquals("20111111112", asociado.getValue().cuitEmisor());
 
-        // La factura quedo ANULADA (conserva su CAE) y la NC EMITIDA.
-        assertEquals(EstadoFactura.ANULADA, factura.getEstado());
+assertEquals(EstadoFactura.ANULADA, factura.getEstado());
         assertEquals("75123456789012", factura.getCae());
         verify(facturaRepository).save(factura);
     }
@@ -143,10 +139,8 @@ class NotaCreditoServiceTest {
 
     @Test
     void crearYEmitir_reintentaLaMismaNc_cuandoQuedoEnError() {
-        // Un intento anterior quedo en ERROR por timeout. ARCA SI la habia
-        // emitido: el ultimo tipo 13 del emisor coincide -> se recupera el
-        // CAE sin reemitir y la factura queda ANULADA.
-        NotaCredito enError = NotaCredito.pendiente(factura, "motivo original");
+
+NotaCredito enError = NotaCredito.pendiente(factura, "motivo original");
         ReflectionTestUtils.setField(enError, "id", 10L);
         enError.marcarError("Fallo la comunicacion con ARCA: timeout");
         when(facturaRepository.findById(5L)).thenReturn(Optional.of(factura));
@@ -181,7 +175,7 @@ class NotaCreditoServiceTest {
 
         assertEquals(EstadoNotaCredito.ERROR, nc.getEstado());
         assertTrue(nc.getMensajeError().contains("10048"));
-        // Sin NC emitida no hay anulacion: la factura no se toca.
+
         assertEquals(EstadoFactura.EMITIDA, factura.getEstado());
         verify(facturaRepository, never()).save(any());
     }
@@ -197,8 +191,7 @@ class NotaCreditoServiceTest {
 
         assertThrows(ArcaException.class, () -> notaCreditoService.emitir(10L));
 
-        // Quedo en ERROR y guardada: reintentable con el mismo endpoint.
-        assertEquals(EstadoNotaCredito.ERROR, nc.getEstado());
+assertEquals(EstadoNotaCredito.ERROR, nc.getEstado());
         assertTrue(nc.getMensajeError().contains("timeout"));
         verify(notaCreditoRepository).save(nc);
         assertEquals(EstadoFactura.EMITIDA, factura.getEstado());

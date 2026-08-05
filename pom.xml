@@ -6,7 +6,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.0.6</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <relativePath/>
     </parent>
     <groupId>com.Bridge</groupId>
     <artifactId>Facturacion</artifactId>
@@ -95,9 +95,8 @@
             <artifactId>spring-boot-starter-security-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Testcontainers: levanta un Postgres descartable por corrida de tests,
-             en vez de depender del Postgres dev con datos viejos. -->
-        <dependency>
+
+<dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-postgresql</artifactId>
             <scope>test</scope>
@@ -107,10 +106,8 @@
             <artifactId>bcpkix-jdk18on</artifactId>
             <version>1.84</version>
         </dependency>
-        <!-- iText 8: generacion del PDF del comprobante (Fase 5).
-             kernel = motor PDF, layout = tablas/parrafos, barcodes = QR ARCA.
-             Licencia AGPL: ok para uso interno del instituto. -->
-        <dependency>
+
+<dependency>
             <groupId>com.itextpdf</groupId>
             <artifactId>kernel</artifactId>
             <version>8.0.5</version>
@@ -213,9 +210,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- user.timezone: Windows reporta el nombre viejo de la zona
-                         (America/Buenos_Aires) y postgres:17 ya no lo acepta. -->
-                    <argLine>-javaagent:${org.mockito:mockito-core:jar} -Duser.timezone=America/Argentina/Buenos_Aires</argLine>
+
+<argLine>-javaagent:${org.mockito:mockito-core:jar} -Duser.timezone=America/Argentina/Buenos_Aires</argLine>
                 </configuration>
             </plugin>
         </plugins>

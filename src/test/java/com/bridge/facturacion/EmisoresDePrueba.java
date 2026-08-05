@@ -2,11 +2,6 @@ package com.bridge.facturacion;
 
 import com.bridge.facturacion.emisor.Emisor;
 
-/**
- * Fabrica emisores de prueba con datos completos. Los paths de
- * certificado siguen la convencion real: {@code <cuit>/certificado.crt}
- * relativos a {@code arca.certs-dir}.
- */
 public final class EmisoresDePrueba {
 
     private EmisoresDePrueba() {}

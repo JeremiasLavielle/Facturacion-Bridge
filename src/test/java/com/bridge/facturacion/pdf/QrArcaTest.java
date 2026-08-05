@@ -9,7 +9,6 @@ import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
 class QrArcaTest {
 
     @Test
@@ -27,12 +26,12 @@ class QrArcaTest {
         assertTrue(json.contains("\"fecha\":\"2026-07-08\""));
         assertTrue(json.contains("\"cuit\":20463447277"));
         assertTrue(json.contains("\"ptoVta\":1"));
-        assertTrue(json.contains("\"tipoCmp\":11"));            // Factura C
+        assertTrue(json.contains("\"tipoCmp\":11"));
         assertTrue(json.contains("\"nroCmp\":42"));
-        assertTrue(json.contains("\"importe\":15000.00"));      // siempre 2 decimales
+        assertTrue(json.contains("\"importe\":15000.00"));
         assertTrue(json.contains("\"tipoDocRec\":96"));
         assertTrue(json.contains("\"nroDocRec\":12345678"));
-        assertTrue(json.contains("\"tipoCodAut\":\"E\""));      // E = CAE
+        assertTrue(json.contains("\"tipoCodAut\":\"E\""));
         assertTrue(json.contains("\"codAut\":86270536276914"));
     }
 }

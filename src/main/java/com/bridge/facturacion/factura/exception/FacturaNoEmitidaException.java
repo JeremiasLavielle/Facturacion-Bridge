@@ -10,8 +10,7 @@ public class FacturaNoEmitidaException extends RuntimeException {
         super(message);
     }
 
-    /** Mismo 409 para la nota de credito sin emitir (comparten handler). */
-    public static FacturaNoEmitidaException notaCredito(Long id) {
+public static FacturaNoEmitidaException notaCredito(Long id) {
         return new FacturaNoEmitidaException(
                 "La nota de credito " + id + " no fue emitida todavia: no tiene comprobante para descargar");
     }

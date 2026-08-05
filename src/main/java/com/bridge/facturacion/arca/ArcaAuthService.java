@@ -11,11 +11,6 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Autenticacion WSAA. Desde la Fase 7 el ticket se cachea POR CUIT:
- * cada emisor firma el TRA con SU certificado y obtiene su propio ticket,
- * sin pisar el de los demas.
- */
 @Service
 public class ArcaAuthService {
 
@@ -77,8 +72,7 @@ public class ArcaAuthService {
         return new Credenciales(token, sign, OffsetDateTime.parse(expiration).toInstant());
     }
 
-    /** Los paths del emisor son relativos a arca.certs-dir. */
-    private String rutaAbsoluta(String pathRelativo) {
+private String rutaAbsoluta(String pathRelativo) {
         return Path.of(properties.certsDir()).resolve(pathRelativo).toString();
     }
 }

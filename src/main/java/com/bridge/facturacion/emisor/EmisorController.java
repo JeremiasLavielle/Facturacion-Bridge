@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Solo lectura: pobla el selector de emisor al crear una factura. */
 @RestController
 @RequestMapping("/emisores")
 @RequiredArgsConstructor
