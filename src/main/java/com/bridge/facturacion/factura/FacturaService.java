@@ -10,6 +10,7 @@ import com.bridge.facturacion.arca.ArcaException;
 import com.bridge.facturacion.arca.ResultadoEmision;
 import com.bridge.facturacion.emisor.Emisor;
 import com.bridge.facturacion.emisor.EmisorRepository;
+import com.bridge.facturacion.emisor.exception.EmisorInactivoException;
 import com.bridge.facturacion.emisor.exception.EmisorNotFoundException;
 import com.bridge.facturacion.factura.dto.FacturaRequestDTO;
 import com.bridge.facturacion.factura.dto.FacturaResponseDTO;
@@ -51,6 +52,11 @@ public class FacturaService {
         Alumno alumno = findAlumnoById(request.getAlumnoId());
         Emisor emisor = emisorRepository.findById(request.getEmisorId())
                 .orElseThrow(() -> new EmisorNotFoundException(request.getEmisorId()));
+
+        if (!emisor.isActivo()) {
+            throw new EmisorInactivoException(emisor.getId());
+        }
+
         LocalDate periodo = request.getPeriodo();
 
 if (facturaRepository.existsByAlumnoAndPeriodo(alumno, periodo)) {

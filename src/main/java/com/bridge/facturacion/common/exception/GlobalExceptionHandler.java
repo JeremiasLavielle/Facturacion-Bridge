@@ -34,6 +34,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
     }
 
+    @ExceptionHandler(com.bridge.facturacion.emisor.exception.EmisorInactivoException.class)
+    public ResponseEntity<ErrorResponse> handleEmisorInactivo(
+            com.bridge.facturacion.emisor.exception.EmisorInactivoException ex) {
+        return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
+    }
+
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException ex) {
         return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
