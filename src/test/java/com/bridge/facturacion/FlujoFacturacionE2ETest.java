@@ -1,9 +1,12 @@
 package com.bridge.facturacion;
 
+import com.bridge.facturacion.emisor.Emisor;
+import com.bridge.facturacion.emisor.EmisorRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -126,7 +129,33 @@ String cuerpo = new String(exchange.getRequestBody().readAllBytes(),
 @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private EmisorRepository emisorRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private Emisor emisorUno;
+    private Emisor emisorDos;
+
+    /**
+     * El test crea SUS PROPIOS emisores en vez de usar los que siembran las
+     * migraciones. Esos son datos fiscales reales (personas, puntos de venta)
+     * que van a cambiar con el tiempo; atar las aserciones a ellos hace que el
+     * build se rompa por motivos que no tienen nada que ver con el código.
+     */
+    @BeforeEach
+    void prepararEmisoresDePrueba() {
+        emisorUno = darDeAltaSiFalta(IntegracionTestBase.CUIT_TEST_UNO, 1);
+        emisorDos = darDeAltaSiFalta(IntegracionTestBase.CUIT_TEST_DOS, 2);
+    }
+
+    private Emisor darDeAltaSiFalta(String cuit, int puntoVenta) {
+        return emisorRepository.findAll().stream()
+                .filter(e -> e.getCuit().equals(cuit) && e.getPuntoVenta() == puntoVenta)
+                .findFirst()
+                .orElseGet(() -> emisorRepository.save(
+                        EmisoresDePrueba.emisor(null, cuit, puntoVenta)));
+    }
 
     @Test
     void flujoCompleto_delLoginALaDescargaDelPdf() throws Exception {
@@ -141,11 +170,16 @@ String cuerpo = new String(exchange.getRequestBody().readAllBytes(),
         MockHttpSession sesion = (MockHttpSession) login.getRequest().getSession(false);
         assertNotNull(sesion, "el login debe dejar una sesion creada");
 
-mockMvc.perform(get("/emisores").session(sesion))
+MvcResult emisores = mockMvc.perform(get("/emisores").session(sesion))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].puntoVenta").value(1))
-                .andExpect(jsonPath("$[1].puntoVenta").value(2));
+                .andReturn();
+        JsonNode lista = objectMapper.readTree(emisores.getResponse().getContentAsString());
+
+        // No se asertan la cantidad ni el orden: la lista incluye tambien los
+        // emisores reales que siembran las migraciones. Solo se verifica que
+        // los emisores de este test esten activos y visibles.
+        assertTrue(listaContiene(lista, emisorUno), "el emisor de prueba 1 deberia estar activo");
+        assertTrue(listaContiene(lista, emisorDos), "el emisor de prueba 2 deberia estar activo");
 
 MvcResult alumno = mockMvc.perform(post("/alumnos").session(sesion).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -166,8 +200,8 @@ MvcResult alumno = mockMvc.perform(post("/alumnos").session(sesion).with(csrf())
 MvcResult factura = mockMvc.perform(post("/facturas").session(sesion).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"alumnoId":%d,"emisorId":1,"monto":15000.00,"periodo":"2026-07-01"}"""
-                                .formatted(alumnoId)))
+                                {"alumnoId":%d,"emisorId":%d,"monto":15000.00,"periodo":"2026-07-01"}"""
+                                .formatted(alumnoId, emisorUno.getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.estado").value("PENDIENTE"))
                 .andExpect(jsonPath("$.emisor.puntoVenta").value(1))
@@ -177,8 +211,8 @@ MvcResult factura = mockMvc.perform(post("/facturas").session(sesion).with(csrf(
         MvcResult factura2 = mockMvc.perform(post("/facturas").session(sesion).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"alumnoId":%d,"emisorId":2,"monto":18000.00,"periodo":"2026-07-01"}"""
-                                .formatted(alumno2Id)))
+                                {"alumnoId":%d,"emisorId":%d,"monto":18000.00,"periodo":"2026-07-01"}"""
+                                .formatted(alumno2Id, emisorDos.getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.emisor.puntoVenta").value(2))
                 .andReturn();
@@ -248,6 +282,15 @@ byte[] pdfNc = mockMvc.perform(get("/notas-credito/{id}/pdf", ncId).session(sesi
 
         assertTrue(pdfNc.length > 1000, "el PDF de la NC deberia tener contenido real");
         assertEquals("%PDF", new String(pdfNc, 0, 4, StandardCharsets.US_ASCII));
+    }
+
+    private boolean listaContiene(JsonNode lista, Emisor esperado) {
+        for (JsonNode nodo : lista) {
+            if (nodo.get("id").asLong() == esperado.getId()) {
+                return nodo.get("puntoVenta").asInt() == esperado.getPuntoVenta();
+            }
+        }
+        return false;
     }
 
     private long idDe(MvcResult resultado) throws Exception {
