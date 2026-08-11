@@ -35,7 +35,10 @@ services:
       ARCA_URL_WSFE: ${ARCA_URL_WSFE}
       ARCA_AMBIENTE: ${ARCA_AMBIENTE}
     volumes:
-      - ./arca:/arca:ro
+      # Se monta SOLO la carpeta del ambiente en uso. El contenedor no llega a
+      # ver los certificados del otro ambiente, asi que no puede usarlos por
+      # error. Adentro sigue siendo /arca, por eso ARCA_CERTS_DIR no cambia.
+      - ./arca/${ARCA_CERTS_ENTORNO:-homologacion}:/arca:ro
     depends_on:
       db:
         condition: service_healthy
