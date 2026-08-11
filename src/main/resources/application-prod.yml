@@ -10,7 +10,11 @@ server:
   servlet:
     session:
       cookie:
-        secure: true
+        # true = la cookie de sesion solo viaja por HTTPS. Es lo que corresponde.
+        # Se baja a false UNICAMENTE en la etapa transitoria sin dominio, cuando
+        # el sistema se sirve por IP y todavia no hay certificado. Con false la
+        # contrasena y la sesion viajan sin cifrar.
+        secure: ${COOKIE_SEGURA:true}
 
 arca:
   certs-dir: ${ARCA_CERTS_DIR:/arca}
