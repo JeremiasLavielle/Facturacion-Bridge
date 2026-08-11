@@ -13,6 +13,9 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    # Fijado explicitamente para que una migracion con acentos se lea igual en
+    # cualquier maquina, sin depender de la config del sistema operativo.
+    encoding: UTF-8
 
 server:
   servlet:

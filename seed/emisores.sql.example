@@ -1,0 +1,53 @@
+-- =============================================================================
+--  PLANTILLA de carga de emisores.  NO contiene datos reales.
+--
+--  Copiala a seed/emisores.sql (ese archivo esta gitignoreado), completa los
+--  datos de cada emisor y ejecutala UNA VEZ contra la base del ambiente.
+--
+--  Por que esto no vive en una migracion de Flyway: los emisores son datos
+--  personales reales (nombre, CUIT, domicilio) y cambian por ambiente. Las
+--  migraciones definen COMO es la base y viajan a un repositorio publico; esto
+--  define QUE hay en la base y se queda en cada maquina.
+--
+--  Ejecutar con Docker:
+--    docker compose -f compose.prod.yaml exec -T db \
+--      psql -U bridge -d bridge < seed/emisores.sql
+--
+--  Ejecutar contra una base local:
+--    psql -U bridge -d bridge -f seed/emisores.sql
+--
+--  Es idempotente: si el emisor ya existe (mismo CUIT y punto de venta) no
+--  hace nada, asi que se puede correr de nuevo sin miedo a duplicar.
+-- =============================================================================
+
+INSERT INTO emisores (cuit, razon_social, nombre_fantasia, domicilio,
+                      condicion_fiscal, ingresos_brutos, inicio_actividades,
+                      punto_venta, cert_path, key_path, activo)
+VALUES
+    -- cuit                : 11 digitos, sin guiones
+    -- razon_social        : apellido y nombre EXACTOS de la constancia de ARCA
+    -- domicilio           : el domicilio COMERCIAL del punto de venta
+    --                       (el que figura en ARCA > Puntos de Venta),
+    --                       NO el domicilio fiscal de la persona
+    -- condicion_fiscal    : 'Responsable Monotributo' para factura C
+    -- ingresos_brutos     : segun la constancia ('Exento', 'No alcanzado',
+    --                       'Regimen Simplificado <nro>', ...)
+    -- inicio_actividades  : dd/MM/yyyy
+    -- punto_venta         : el habilitado como Web Services en el portal
+    -- cert_path/key_path  : relativos a arca.certs-dir, o sea <cuit>/archivo
+    ('00000000000',
+     'APELLIDO NOMBRE',
+     'Instituto Bridge',
+     'Calle 000 - Localidad, Provincia',
+     'Responsable Monotributo',
+     'Exento',
+     '01/01/2020',
+     1,
+     '00000000000/certificado.crt',
+     '00000000000/clave-privada.key',
+     TRUE)
+
+ON CONFLICT ON CONSTRAINT uq_emisor_cuit_punto_venta DO NOTHING;
+
+-- Verificacion rapida despues de correrlo:
+--   SELECT id, cuit, razon_social, punto_venta, activo FROM emisores ORDER BY id;

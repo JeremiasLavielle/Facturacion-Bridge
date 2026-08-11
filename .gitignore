@@ -42,6 +42,10 @@ build/
 .env
 # Certificado y clave privada de ARCA: jamás al repositorio.
 /arca/
+# Datos personales de los emisores (nombre, CUIT, domicilio). Solo viaja la
+# plantilla seed/emisores.sql.example.
+/seed/*.sql
+!/seed/*.sql.example
 # Build del frontend: se genera con npm run build, no se versiona acá.
 /frontend-dist/
 
