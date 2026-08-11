@@ -33,13 +33,18 @@ build/
 .vscode/
 
 ### Deploy (Fase Docker) ###
+# OJO: estas reglas llevan barra INICIAL a proposito. Un patron como "arca/"
+# (sin barra inicial) matchea ese nombre a CUALQUIER profundidad, y termino
+# ignorando tambien el paquete Java src/main/java/com/bridge/facturacion/arca/.
+# La barra inicial ancla la regla a la raiz del repositorio.
+
 # Secretos reales: solo .env.example va a Git.
 .env
 # Certificado y clave privada de ARCA: jamás al repositorio.
-arca/
+/arca/
 # Build del frontend: se genera con npm run build, no se versiona acá.
-frontend-dist/
+/frontend-dist/
 
-.docs/
+/.docs/
 # Documentacion local de trabajo
-docs/
+/docs/
