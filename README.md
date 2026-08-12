@@ -9,6 +9,8 @@ En producción desde agosto de 2026.
 
 ---
 
+![Panel de facturación](screenshots/panel.png)
+
 ## Contexto
 
 Un instituto de idiomas factura mensualmente a sus alumnos. Los comprobantes los

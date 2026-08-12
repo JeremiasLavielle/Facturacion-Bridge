@@ -1,10 +1,19 @@
-HELP.md
+### Build ###
 target/
-.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+.mvn/wrapper/maven-wrapper.jar
+/frontend-dist/
 
-### STS ###
+### IDE ###
+.idea
+*.iws
+*.iml
+*.ipr
+.vscode/
 .apt_generated
 .classpath
 .factorypath
@@ -12,43 +21,21 @@ target/
 .settings
 .springBeans
 .sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
-.vscode/
-
-### Deploy (Fase Docker) ###
-# OJO: estas reglas llevan barra INICIAL a proposito. Un patron como "arca/"
-# (sin barra inicial) matchea ese nombre a CUALQUIER profundidad, y termino
-# ignorando tambien el paquete Java src/main/java/com/bridge/facturacion/arca/.
-# La barra inicial ancla la regla a la raiz del repositorio.
-
-# Secretos reales: solo .env.example va a Git.
+### Secretos y datos personales ###
+# Rutas ancladas con "/": sin la barra inicial el patron coincide a cualquier
+# profundidad (p. ej. "arca/" excluiria tambien el paquete Java homonimo).
 .env
-# Certificado y clave privada de ARCA: jamás al repositorio.
 /arca/
-# Datos personales de los emisores (nombre, CUIT, domicilio). Solo viaja la
-# plantilla seed/emisores.sql.example.
 /seed/*.sql
 !/seed/*.sql.example
-# Build del frontend: se genera con npm run build, no se versiona acá.
-/frontend-dist/
 
-/.docs/
-# Documentacion local de trabajo
+### Documentacion local ###
 /docs/
+/.docs/
+HELP.md
