@@ -44,6 +44,10 @@ public class PdfService {
 
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter PERIODO = DateTimeFormatter.ofPattern("MM/yyyy");
+    // Para nombres de archivo: la barra de "MM/yyyy" no es válida, y el orden
+    // año-mes hace que los PDF de un alumno queden cronológicos al ordenarlos
+    // por nombre en una carpeta.
+    private static final DateTimeFormatter PERIODO_ARCHIVO = DateTimeFormatter.ofPattern("yyyy-MM");
     private static final int TIPO_FACTURA_C = 11;
     private static final int TIPO_NOTA_CREDITO_C = 13;
     private static final int DOC_TIPO_DNI = 96;
@@ -83,13 +87,29 @@ private record Comprobante(
     }
 
 public String nombreArchivo(Factura factura) {
-        return "factura-%04d-%08d.pdf".formatted(
-                factura.getEmisor().getPuntoVenta(), factura.getNumeroComprobante());
+        return "%s - %s.pdf".formatted(
+                limpiarParaNombreDeArchivo(factura.getAlumno().getNombre()),
+                PERIODO_ARCHIVO.format(factura.getPeriodo()));
     }
 
     public String nombreArchivo(NotaCredito nc) {
-        return "nota-credito-%04d-%08d.pdf".formatted(
-                nc.getEmisor().getPuntoVenta(), nc.getNumeroComprobante());
+        // Prefijo "NC" para que no colisione con el PDF de su factura, que
+        // comparte alumno y periodo.
+        return "NC %s - %s.pdf".formatted(
+                limpiarParaNombreDeArchivo(nc.getFactura().getAlumno().getNombre()),
+                PERIODO_ARCHIVO.format(nc.getFactura().getPeriodo()));
+    }
+
+    /**
+     * Quita los caracteres que Windows y Linux no admiten en un nombre de
+     * archivo. Sin esto, un alumno cargado como "Perez / Juan" generaria una
+     * descarga rota o, peor, un nombre interpretado como ruta.
+     */
+    private String limpiarParaNombreDeArchivo(String nombre) {
+        String limpio = nombre.replaceAll("[\\\\/:*?\"<>|]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+        return limpio.isEmpty() ? "comprobante" : limpio;
     }
 
     @Transactional(readOnly = true)

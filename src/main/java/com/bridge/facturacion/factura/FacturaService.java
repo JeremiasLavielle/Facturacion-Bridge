@@ -20,6 +20,7 @@ import com.bridge.facturacion.factura.exception.FacturaYaEmitidaException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -153,7 +154,11 @@ public List<FacturaResponseDTO> emitirPorPeriodo(LocalDate periodo) {
 
     @Transactional(readOnly = true)
     public List<FacturaResponseDTO> findAll() {
-        List<Factura> facturas = facturaRepository.findAll();
+        // Mas nueva primero: la factura recien creada es la que se quiere ver y
+        // operar. Sin orden explicito, Postgres devuelve las filas como se le
+        // da la gana (en la practica, por orden de insercion), y las nuevas
+        // aparecian al final de la lista.
+        List<Factura> facturas = facturaRepository.findAll(Sort.by(Sort.Direction.DESC, "id"));
         return facturas.stream().map(facturaMapper::toResponse).toList();
     }
 

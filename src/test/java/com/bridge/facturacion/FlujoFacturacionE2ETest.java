@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -233,7 +234,7 @@ byte[] pdf = mockMvc.perform(get("/facturas/{id}/pdf", facturaId).session(sesion
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition",
-                        "attachment; filename=\"factura-0001-00000042.pdf\""))
+                        containsString("Alumna E2E - 2026-07.pdf")))
                 .andReturn().getResponse().getContentAsByteArray();
 
         assertTrue(pdf.length > 1000, "el PDF deberia tener contenido real");
@@ -243,7 +244,7 @@ mockMvc.perform(get("/facturas/{id}/pdf", factura2Id).session(sesion))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition",
-                        "attachment; filename=\"factura-0002-00000042.pdf\""));
+                        containsString("Alumno E2E Dos - 2026-07.pdf")));
 
 MvcResult nc = mockMvc.perform(post("/facturas/{id}/nota-credito", facturaId)
                         .session(sesion).with(csrf())
@@ -277,7 +278,7 @@ byte[] pdfNc = mockMvc.perform(get("/notas-credito/{id}/pdf", ncId).session(sesi
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition",
-                        "attachment; filename=\"nota-credito-0001-00000008.pdf\""))
+                        containsString("NC Alumna E2E - 2026-07.pdf")))
                 .andReturn().getResponse().getContentAsByteArray();
 
         assertTrue(pdfNc.length > 1000, "el PDF de la NC deberia tener contenido real");

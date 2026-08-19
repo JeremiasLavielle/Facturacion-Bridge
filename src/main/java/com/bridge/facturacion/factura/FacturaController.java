@@ -6,11 +6,14 @@ import com.bridge.facturacion.pdf.PdfService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -26,10 +29,15 @@ public class FacturaController {
     public ResponseEntity<byte[]> descargarPdf(@PathVariable Long id) {
         var factura = pdfService.buscarEmitida(id);
         byte[] pdf = pdfService.generar(factura);
+        // ContentDisposition arma tambien la variante filename*=UTF-8''..., que
+        // es la unica forma de que un nombre con acentos ("Lucía") llegue
+        // intacto: las cabeceras HTTP no admiten UTF-8 directo.
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
-                .header("Content-Disposition",
-                        "attachment; filename=\"" + pdfService.nombreArchivo(factura) + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(pdfService.nombreArchivo(factura), StandardCharsets.UTF_8)
+                                .build().toString())
                 .body(pdf);
     }
 

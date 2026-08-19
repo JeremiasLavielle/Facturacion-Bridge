@@ -5,10 +5,14 @@ import com.bridge.facturacion.notacredito.dto.NotaCreditoResponseDTO;
 import com.bridge.facturacion.pdf.PdfService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequiredArgsConstructor
@@ -36,8 +40,10 @@ public class NotaCreditoController {
         byte[] pdf = pdfService.generar(nc);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
-                .header("Content-Disposition",
-                        "attachment; filename=\"" + pdfService.nombreArchivo(nc) + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(pdfService.nombreArchivo(nc), StandardCharsets.UTF_8)
+                                .build().toString())
                 .body(pdf);
     }
 }
