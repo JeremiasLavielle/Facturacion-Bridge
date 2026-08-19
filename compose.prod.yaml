@@ -22,6 +22,13 @@ services:
     build: .
     container_name: bridge-backend
     restart: unless-stopped
+    # El contenedor corre con el UID del dueño de los certificados en el host.
+    # La imagen define su propio usuario `bridge`, con un UID distinto, que no
+    # puede atravesar arca/<ambiente>/<cuit>/ (700) ni leer la clave privada
+    # (600). Igualar el UID resuelve el acceso SIN aflojar esos permisos: la
+    # clave privada es la identidad fiscal del emisor y no debe quedar legible
+    # para otros usuarios del servidor.
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
     environment:
       TZ: America/Argentina/Buenos_Aires
       SPRING_PROFILES_ACTIVE: prod
